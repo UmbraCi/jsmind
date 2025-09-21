@@ -1,9 +1,9 @@
 /**
  * @license BSD
- * @copyright 2014-2025 hizzgdev@163.com
+ * @copyright 2014-2025 UmbraCi
  *
  * Project Home:
- *   https://github.com/hizzgdev/jsmind/
+ *   https://github.com/UmbraCi/jsmind/
  */
 
 /**
@@ -15,7 +15,7 @@ export const __version__ = '0.9.0';
  * Library author.
  * @type {string}
  */
-export const __author__ = 'hizzgdev@163.com';
+export const __author__ = 'UmbraCi';
 
 if (typeof String.prototype.startsWith != 'function') {
     String.prototype.startsWith = function (p) {

@@ -1,6 +1,6 @@
 {
-    "name": "jsmind",
-    "version": "0.9.0",
+    "name": "@umbraci/jsmind",
+    "version": "0.9.1",
     "description": "jsMind is a pure javascript library for mindmap, it base on html5 canvas. jsMind was released under BSD license, you can embed it in any project, if only you observe the license.",
     "main": "es6/jsmind.js",
     "types": "types/generated/index.d.ts",
@@ -19,6 +19,11 @@
             "import": "./es6/jsmind.screenshot.js",
             "require": "./es6/jsmind.screenshot.js",
             "types": "./types/generated/plugins/jsmind.screenshot.d.ts"
+        },
+        "./multiline-text": {
+            "import": "./es6/jsmind.multiline-text.js",
+            "require": "./es6/jsmind.multiline-text.js",
+            "types": "./types/generated/plugins/jsmind.multiline-text.d.ts"
         },
         "./style/jsmind.css": "./style/jsmind.css"
     },
@@ -47,24 +52,23 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/hizzgdev/jsmind.git"
+        "url": "git+https://github.com/UmbraCi/jsmind.git"
     },
     "author": {
-        "name": "hizzgdev@163.com"
+        "name": "UmbraCi"
     },
     "license": "BSD-3-Clause",
     "bugs": {
-        "url": "https://github.com/hizzgdev/jsmind/issues"
+        "url": "https://github.com/UmbraCi/jsmind/issues"
     },
-    "homepage": "https://github.com/hizzgdev/jsmind#readme",
+    "homepage": "https://github.com/UmbraCi/jsmind#readme",
     "keywords": [
         "jsmind",
         "mindmap"
     ],
     "maintainers": [
         {
-            "name": "hizzgdev",
-            "email": "hizzgdev@163.com"
+            "name": "UmbraCi"
         }
     ],
     "devDependencies": {

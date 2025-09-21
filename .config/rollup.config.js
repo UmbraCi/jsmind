@@ -31,11 +31,11 @@ export default [
             banner: '/**\n* @license BSD-3-Clause\n* @copyright 2014-2025 hizzgdev@163.com\n*\n* Project Home:\n*   https://github.com/hizzgdev/jsmind/\n*/',
             sourcemap: true,
             globals: {
-                jsmind: 'jsMind',
+                '@umbraci/jsmind': 'jsMind',
             },
             exports: 'named',
         },
-        external: ['jsmind'],
+        external: ['@umbraci/jsmind'],
         plugins: [
             cleanup({
                 comments: 'none',
@@ -56,11 +56,11 @@ export default [
             banner: '/**\n* @license BSD-3-Clause\n* @copyright 2014-2025 hizzgdev@163.com\n*\n* Project Home:\n*   https://github.com/hizzgdev/jsmind/\n*/',
             sourcemap: true,
             globals: {
-                jsmind: 'jsMind',
+                '@umbraci/jsmind': 'jsMind',
             },
             exports: 'named',
         },
-        external: ['jsmind'],
+        external: ['@umbraci/jsmind'],
         plugins: [
             cleanup({
                 comments: 'none',
@@ -81,12 +81,12 @@ export default [
             banner: '/**\n* @license BSD-3-Clause\n* @copyright 2014-2025 hizzgdev@163.com\n*\n* Project Home:\n*   https://github.com/hizzgdev/jsmind/\n*/',
             sourcemap: true,
             globals: {
-                'jsmind': 'jsMind',
+                '@umbraci/jsmind': 'jsMind',
                 'dom-to-image': 'domtoimage',
             },
             exports: 'named',
         },
-        external: ['jsmind', 'dom-to-image'],
+        external: ['@umbraci/jsmind', 'dom-to-image'],
         plugins: [
             cleanup({
                 comments: 'none',

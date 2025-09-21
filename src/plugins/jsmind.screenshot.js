@@ -1,12 +1,12 @@
 /**
  * @license BSD
- * @copyright 2014-2025 hizzgdev@163.com
+ * @copyright 2014-2025 UmbraCi
  *
  * Project Home:
- *   https://github.com/hizzgdev/jsmind/
+ *   https://github.com/UmbraCi/jsmind/
  */
 
-import jsMind from 'jsmind';
+import jsMind from '@umbraci/jsmind';
 import domtoimage from 'dom-to-image';
 
 if (!jsMind) {
@@ -30,7 +30,7 @@ const DEFAULT_OPTIONS = {
     filename: null,
     watermark: {
         left: $.w.location,
-        right: 'https://github.com/hizzgdev/jsmind',
+        right: 'https://github.com/UmbraCi/jsmind',
     },
     background: 'transparent',
 };

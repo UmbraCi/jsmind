@@ -1,12 +1,12 @@
 /**
  * @license BSD
- * @copyright 2014-2025 hizzgdev@163.com
+ * @copyright 2014-2025 UmbraCi
  *
  * Project Home:
- *   https://github.com/hizzgdev/jsmind/
+ *   https://github.com/UmbraCi/jsmind/
  */
 
-import jsMind from 'jsmind';
+import jsMind from '@umbraci/jsmind';
 
 if (!jsMind) {
     throw new Error('jsMind is not defined');

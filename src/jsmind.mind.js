@@ -1,9 +1,9 @@
 /**
  * @license BSD
- * @copyright 2014-2025 hizzgdev@163.com
+ * @copyright 2014-2025 UmbraCi
  *
  * Project Home:
- *   https://github.com/hizzgdev/jsmind/
+ *   https://github.com/UmbraCi/jsmind/
  */
 
 import { Node } from './jsmind.node.js';
