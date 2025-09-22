@@ -396,12 +396,32 @@ export class MultilineText {
         // Store original dimensions for layout recalculation
         const originalHeight = element.clientHeight;
 
-        // Use the new static rendering function with plugin configuration
-        renderTextToElement(element, node.topic, {
-            clearElement: true,
-            applyStyles: true,
-            supportHtml: this.jm.view.opts.support_html || false
-        });
+        // Check if we have custom node render function
+        const hasCustomRender =
+            this.jm.view.opts.custom_node_render &&
+            typeof this.jm.view.opts.custom_node_render === 'function';
+
+        let customRendered = false;
+
+        if (hasCustomRender) {
+            // Try custom render first
+            try {
+                customRendered = this.jm.view.opts.custom_node_render(this.jm, element, node);
+            } catch (error) {
+                console.error('Multiline text plugin: Error in custom_node_render', error);
+                customRendered = false;
+            }
+        }
+
+        // If custom render didn't handle it, use our multiline logic
+        if (!customRendered) {
+            // Use the new static rendering function with plugin configuration
+            renderTextToElement(element, node.topic, {
+                clearElement: true,
+                applyStyles: true,
+                supportHtml: this.jm.view.opts.support_html || false,
+            });
+        }
 
         // Check if height changed and trigger layout update if needed
         const newHeight = element.clientHeight;
