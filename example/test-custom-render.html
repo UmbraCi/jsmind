@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <title>jsMind - Multiline Text with Custom Node Render Test</title>
+        <meta
+            name="description"
+            content="Test multiline text plugin compatibility with custom_node_render"
+        />
+        <meta name="author" content="UmbraCi" />
+
+        <link type="text/css" rel="stylesheet" href="../style/jsmind.css" />
+        <style type="text/css">
+            #jsmind_container {
+                width: 100%;
+                height: 500px;
+                border: solid 1px #ccc;
+                background: #f4f4f4;
+            }
+
+            .custom-node {
+                background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+                color: white;
+                border-radius: 8px;
+                padding: 8px 12px;
+                font-weight: bold;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            }
+
+            .multiline-custom-node {
+                background: linear-gradient(45deg, #667eea, #764ba2);
+                color: white;
+                border-radius: 12px;
+                padding: 10px 15px;
+                font-weight: bold;
+                box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+                white-space: pre-wrap;
+                word-break: break-word;
+            }
+
+            .info-panel {
+                margin: 20px 0;
+                padding: 15px;
+                background: #e8f4fd;
+                border-left: 4px solid #2196f3;
+                border-radius: 4px;
+            }
+
+            .test-buttons {
+                margin: 10px 0;
+            }
+
+            .test-buttons button {
+                margin: 5px;
+                padding: 8px 16px;
+                background: #4caf50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+
+            .test-buttons button:hover {
+                background: #45a049;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="info-panel">
+            <h2>Multiline Text Plugin with Custom Node Render Test</h2>
+            <p>
+                This test verifies that the multiline text plugin works correctly with
+                custom_node_render function.
+            </p>
+            <ul>
+                <li>
+                    <strong>Custom rendered nodes</strong>: Nodes with special styling applied by
+                    custom_node_render
+                </li>
+                <li>
+                    <strong>Multiline text</strong>: Nodes containing line breaks (\n) should
+                    display correctly
+                </li>
+                <li>
+                    <strong>Editing</strong>: Double-click any node to edit with multiline support
+                </li>
+            </ul>
+        </div>
+
+        <div class="test-buttons">
+            <button onclick="addCustomNode()">Add Custom Node</button>
+            <button onclick="addMultilineNode()">Add Multiline Node</button>
+            <button onclick="addCustomMultilineNode()">Add Custom Multiline Node</button>
+            <button onclick="testEditMode()">Test Edit Mode</button>
+        </div>
+
+        <div id="jsmind_container"></div>
+
+        <script type="text/javascript" src="../es6/jsmind.js"></script>
+        <script type="text/javascript" src="../es6/jsmind.multiline-text.js"></script>
+        <script type="text/javascript">
+            var mind = {
+                meta: {
+                    name: 'Custom Render Test',
+                    author: 'UmbraCi',
+                    version: '1.0',
+                },
+                format: 'node_tree',
+                data: {
+                    id: 'root',
+                    topic: 'Custom Render\nTest Root',
+                    children: [
+                        {
+                            id: 'custom1',
+                            topic: 'Custom Node 1',
+                            data: { custom_render: true },
+                        },
+                        {
+                            id: 'multiline1',
+                            topic: 'Multiline Node\nLine 2\nLine 3',
+                        },
+                        {
+                            id: 'custom_multiline1',
+                            topic: 'Custom Multiline\nWith Multiple\nLines',
+                            data: { custom_render: true, multiline: true },
+                        },
+                        {
+                            id: 'normal1',
+                            topic: 'Normal Node',
+                        },
+                    ],
+                },
+            };
+
+            // Custom node render function
+            function customNodeRender(jm, element, node) {
+                console.log('customNodeRender', node);
+                // Check if this node should use custom rendering
+                if (node.data && node.data.custom_render) {
+                    // Apply custom styling
+                    if (node.data.multiline && node.topic.includes('\n')) {
+                        element.className = 'multiline-custom-node';
+                        element.innerHTML = '';
+                        element.textContent = node.topic;
+                        element.style.whiteSpace = 'pre-wrap';
+                        element.style.wordBreak = 'break-word';
+                    } else {
+                        element.className = 'custom-node';
+                        element.innerHTML = '';
+                        element.textContent = node.topic;
+                    }
+                    return true; // Indicate that we handled the rendering
+                }
+                return false; // Let default rendering handle it
+            }
+
+            var options = {
+                container: 'jsmind_container',
+                theme: 'primary',
+                editable: true,
+                view: {
+                    custom_node_render: customNodeRender,
+                },
+            };
+
+            var jm = new jsMind(options);
+            jm.show(mind);
+
+            // Enable multiline text plugin
+            jm.enable_plugin('multiline_text', {
+                text_width: 200,
+                editor_border_color: '#4CAF50',
+            });
+
+            // Test functions
+            function addCustomNode() {
+                var selected = jm.get_selected_node();
+                if (selected) {
+                    var new_node = jm.add_node(
+                        selected,
+                        'custom_' + Date.now(),
+                        'New Custom Node',
+                        {
+                            custom_render: true,
+                        }
+                    );
+                    console.log('Added custom node:', new_node);
+                } else {
+                    alert('Please select a node first');
+                }
+            }
+
+            function addMultilineNode() {
+                var selected = jm.get_selected_node();
+                if (selected) {
+                    var new_node = jm.add_node(
+                        selected,
+                        'multiline_' + Date.now(),
+                        'New Multiline\nNode with\nMultiple Lines'
+                    );
+                    console.log('Added multiline node:', new_node);
+                } else {
+                    alert('Please select a node first');
+                }
+            }
+
+            function addCustomMultilineNode() {
+                var selected = jm.get_selected_node();
+                if (selected) {
+                    var new_node = jm.add_node(
+                        selected,
+                        'custom_multi_' + Date.now(),
+                        'Custom Multiline\nWith Special\nStyling',
+                        {
+                            custom_render: true,
+                            multiline: true,
+                        }
+                    );
+                    console.log('Added custom multiline node:', new_node);
+                } else {
+                    alert('Please select a node first');
+                }
+            }
+
+            function testEditMode() {
+                var selected = jm.get_selected_node();
+                if (selected) {
+                    jm.begin_edit(selected);
+                    console.log('Started editing node:', selected);
+                } else {
+                    alert('Please select a node first');
+                }
+            }
+
+            // Log plugin status
+            console.log('jsMind instance:', jm);
+            console.log('Multiline text plugin enabled:', !!jm.multiline_text);
+            console.log('Custom node render function:', !!options.view.custom_node_render);
+        </script>
+    </body>
+</html>
