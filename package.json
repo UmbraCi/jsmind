@@ -87,6 +87,6 @@
         "testEnvironment": "jsdom"
     },
     "sideEffects": [
-        "./es6/jsmind.multiline-text.js"
+        "./es6/*"
     ]
 }
