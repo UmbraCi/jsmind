@@ -7,6 +7,50 @@ jsMind 是一个显示/编辑思维导图的纯 javascript 类库，其基于 ht
 
 jsMind is mind map library built by javascript, it base on html5 canvas and svg. jsMind is released under [the BSD license](LICENSE), you can embed it in any project as long as you abide by the license.
 
+## ✨ New Feature: Enhanced Plugin System
+
+jsMind now supports a new enhanced plugin system with:
+
+- **Synchronous Initialization**: Plugins initialize before rendering, allowing them to affect the initial render
+- **Preload Support**: Control plugin initialization order (before or after core modules)
+- **Lifecycle Management**: Proper cleanup with `beforePluginRemove()` and `beforePluginDestroy()` hooks
+- **Dynamic Plugin Management**: Add or remove plugins at runtime
+- **Backward Compatibility**: Works alongside the existing plugin system
+
+See [Enhanced Plugin System Documentation](docs/enhanced-plugin-system.md) for more information.
+
+### Quick Example
+
+```javascript
+import jsMind from './jsmind.js';
+import MultilineTextV2 from './plugins/jsmind.multiline-text-v2.js';
+
+// Register plugin (before creating instance)
+jsMind.usePlugin(MultilineTextV2, {
+    text_width: 250,
+    min_height: 40
+});
+
+// Create jsMind instance
+const jm = new jsMind({
+    container: 'jsmind_container',
+    editable: true
+});
+
+// Show mind map with multiline text
+jm.show({
+    meta: { name: 'demo' },
+    format: 'node_tree',
+    data: {
+        id: 'root',
+        topic: 'Root Node',
+        children: [
+            { id: 'node1', topic: 'Line 1\nLine 2\nLine 3' }
+        ]
+    }
+});
+```
+
 ## Project Home
 
 -   [jsMind on Github](https://github.com/hizzgdev/jsmind)

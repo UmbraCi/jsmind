@@ -98,4 +98,46 @@ export default [
             }),
         ],
     },
+    {
+        input: 'src/jsmind.enhanced-plugin.js',
+        output: {
+            name: 'jsMindEnhancedPlugin',
+            file: 'es6/jsmind.enhanced-plugin.js',
+            format: 'umd',
+            banner: '/**\n* @license BSD-3-Clause\n* @copyright 2014-2025 hizzgdev@163.com\n*\n* Project Home:\n*   https://github.com/hizzgdev/jsmind/\n*/',
+            sourcemap: true,
+            exports: 'auto',
+        },
+        plugins: [
+            cleanup({
+                comments: 'none',
+            }),
+            terser({
+                output: {
+                    comments: 'all',
+                },
+            }),
+        ],
+    },
+    {
+        input: 'src/plugins/jsmind.multiline-text-v2.js',
+        output: {
+            name: 'MultilineTextV2',
+            file: 'es6/jsmind.multiline-text-v2.js',
+            format: 'umd',
+            banner: '/**\n* @license BSD-3-Clause\n* @copyright 2014-2025 hizzgdev@163.com\n*\n* Project Home:\n*   https://github.com/hizzgdev/jsmind/\n*/',
+            sourcemap: true,
+            exports: 'default',
+        },
+        plugins: [
+            cleanup({
+                comments: 'none',
+            }),
+            terser({
+                output: {
+                    comments: 'all',
+                },
+            }),
+        ],
+    },
 ];

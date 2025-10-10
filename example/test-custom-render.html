@@ -138,8 +138,8 @@
                 console.log('customNodeRender', node);
                 // Check if this node should use custom rendering
                 if (node.data && node.data.custom_render) {
-                    // Apply custom styling
-                    if (node.data.multiline && node.topic.includes('\n')) {
+                    // Auto-detect multiline text and apply appropriate styling
+                    if (node.topic.includes('\n')) {
                         element.className = 'multiline-custom-node';
                         element.innerHTML = '';
                         element.textContent = node.topic;
@@ -162,16 +162,16 @@
                 view: {
                     custom_node_render: customNodeRender,
                 },
+                plugin: {
+                    'multiline_text': {}
+                },
             };
 
             var jm = new jsMind(options);
             jm.show(mind);
-
-            // Enable multiline text plugin
-            jm.enable_plugin('multiline_text', {
-                text_width: 200,
-                editor_border_color: '#4CAF50',
-            });
+            // Log plugin status
+            console.log('jsMind instance:', jm);
+            console.log('Multiline text plugin enabled:', !!jm.multiline_text);
 
             // Test functions
             function addCustomNode() {
@@ -233,9 +233,6 @@
                 }
             }
 
-            // Log plugin status
-            console.log('jsMind instance:', jm);
-            console.log('Multiline text plugin enabled:', !!jm.multiline_text);
             console.log('Custom node render function:', !!options.view.custom_node_render);
         </script>
     </body>

@@ -606,6 +606,7 @@ export class ViewProvider {
 
     /** @param {HTMLElement} ele @param {import('./jsmind.node.js').Node} node */
     _default_node_render(ele, node) {
+        console.log('origin _default_node_render');
         if (this.opts.support_html) {
             $.h(ele, node.topic);
         } else {
@@ -614,6 +615,7 @@ export class ViewProvider {
     }
     /** @param {HTMLElement} ele @param {import('./jsmind.node.js').Node} node */
     _custom_node_render(ele, node) {
+        console.log('origin _custom_node_render');
         let rendered = this.opts.custom_node_render(this.jm, ele, node);
         if (!rendered) {
             this._default_node_render(ele, node);

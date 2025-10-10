@@ -15,6 +15,7 @@ import { LayoutProvider } from './jsmind.layout_provider.js';
 import { ViewProvider } from './jsmind.view_provider.js';
 import { ShortcutProvider } from './jsmind.shortcut_provider.js';
 import { Plugin, register as _register_plugin, apply as apply_plugins } from './jsmind.plugin.js';
+import { EnhancedPluginManager, EnhancedPlugin } from './jsmind.enhanced-plugin.js';
 import { format } from './jsmind.format.js';
 import { $ } from './jsmind.dom.js';
 import { util as _util } from './jsmind.util.js';
@@ -36,6 +37,50 @@ export default class jsMind {
     static plugin = Plugin;
     static register_plugin = _register_plugin;
     static util = _util;
+    static enhanced_plugin = EnhancedPlugin;
+
+    /** @type {Array<import('./jsmind.enhanced-plugin.js').PluginDescriptor>} */
+    static enhancedPluginList = [];
+
+    /**
+     * Register an enhanced plugin
+     * @param {typeof EnhancedPlugin} PluginClass - Plugin class
+     * @param {object} [options={}] - Plugin options
+     * @returns {typeof jsMind}
+     */
+    static usePlugin(PluginClass, options = {}) {
+        // Check if already registered
+        const exists = jsMind.enhancedPluginList.some(d => d.PluginClass === PluginClass);
+        if (exists) {
+            logger.warn('Plugin ' + PluginClass.name + ' already registered');
+            return jsMind;
+        }
+
+        // Check instanceName
+        if (!PluginClass.instanceName) {
+            throw new Error('Plugin ' + PluginClass.name + ' must define static instanceName');
+        }
+
+        // Add to plugin list
+        jsMind.enhancedPluginList.push({
+            PluginClass,
+            instanceName: PluginClass.instanceName,
+            preload: PluginClass.preload || false,
+            pluginOpt: options,
+            instance: null,
+        });
+
+        return jsMind;
+    }
+
+    /**
+     * Check if an enhanced plugin is registered
+     * @param {typeof EnhancedPlugin} PluginClass - Plugin class
+     * @returns {boolean}
+     */
+    static hasEnhancedPlugin(PluginClass) {
+        return jsMind.enhancedPluginList.some(d => d.PluginClass === PluginClass);
+    }
 
     /**
      * Create a jsMind instance.
@@ -59,6 +104,13 @@ export default class jsMind {
             return;
         }
         this.initialized = true;
+
+        // Initialize enhanced plugin manager
+        this.enhancedPluginManager = new EnhancedPluginManager(this);
+
+        // Initialize preload plugins (before core modules)
+        this.enhancedPluginManager.initPreloadPlugins();
+
         var opts_layout = {
             mode: this.options.mode,
             hspace: this.options.layout.hspace,
@@ -97,6 +149,10 @@ export default class jsMind {
 
         this._event_bind();
 
+        // Initialize normal plugins (after core modules)
+        this.enhancedPluginManager.initNormalPlugins();
+
+        // Apply old plugins (asynchronously)
         apply_plugins(this, this.options.plugin);
     }
     /** @returns {boolean} whether current mind map is editable */
@@ -1078,6 +1134,50 @@ export default class jsMind {
         for (var i = 0; i < l; i++) {
             this.event_handles[i](type, data);
         }
+    }
+
+    /**
+     * Remove an enhanced plugin
+     * @param {typeof EnhancedPlugin} PluginClass - Plugin class
+     */
+    removePlugin(PluginClass) {
+        if (this.enhancedPluginManager) {
+            this.enhancedPluginManager.removePlugin(PluginClass);
+        }
+    }
+
+    /**
+     * Get an enhanced plugin instance
+     * @param {string} instanceName - Plugin instance name
+     * @returns {EnhancedPlugin | undefined}
+     */
+    getPlugin(instanceName) {
+        if (this.enhancedPluginManager) {
+            return this.enhancedPluginManager.getPlugin(instanceName);
+        }
+        return undefined;
+    }
+
+    /**
+     * Destroy the jsMind instance and clean up resources
+     */
+    destroy() {
+        // Destroy enhanced plugins
+        if (this.enhancedPluginManager) {
+            this.enhancedPluginManager.destroyAllPlugins();
+        }
+
+        // Clear event listeners
+        this.clear_event_listener();
+
+        // Clean up view
+        if (this.view) {
+            this.view.reset();
+        }
+
+        // Clear mind data
+        this.mind = null;
+        this.initialized = false;
     }
 
     /**
