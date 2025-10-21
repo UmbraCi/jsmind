@@ -1,27 +1,27 @@
 {
     "name": "@umbraci/jsmind",
-    "version": "0.9.7",
+    "version": "0.9.8",
     "description": "jsMind is a pure javascript library for mindmap, it base on html5 canvas. jsMind was released under BSD license, you can embed it in any project, if only you observe the license.",
     "main": "es6/jsmind.js",
     "types": "types/generated/index.d.ts",
     "exports": {
         ".": {
-            "import": "./es6/jsmind.js",
+            "import": "./es6/jsmind.esm.js",
             "require": "./es6/jsmind.js",
             "types": "./types/generated/index.d.ts"
         },
         "./draggable-node": {
-            "import": "./es6/jsmind.draggable-node.js",
+            "import": "./es6/jsmind.draggable-node.esm.js",
             "require": "./es6/jsmind.draggable-node.js",
             "types": "./types/generated/plugins/jsmind.draggable-node.d.ts"
         },
         "./screenshot": {
-            "import": "./es6/jsmind.screenshot.js",
+            "import": "./es6/jsmind.screenshot.esm.js",
             "require": "./es6/jsmind.screenshot.js",
             "types": "./types/generated/plugins/jsmind.screenshot.d.ts"
         },
         "./multiline-text": {
-            "import": "./es6/jsmind.multiline-text.js",
+            "import": "./es6/jsmind.multiline-text.esm.js",
             "require": "./es6/jsmind.multiline-text.js",
             "types": "./types/generated/plugins/jsmind.multiline-text.d.ts"
         },

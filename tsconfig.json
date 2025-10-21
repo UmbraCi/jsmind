@@ -13,9 +13,12 @@
         "noEmit": true,
         "baseUrl": ".",
         "paths": {
-            "jsmind": ["types/generated/index.d.ts"],
-            "jsmind/draggable-node": ["types/generated/plugins/jsmind.draggable-node.d.ts"],
-            "jsmind/screenshot": ["types/generated/plugins/jsmind.screenshot.d.ts"]
+            "@umbraci/jsmind": ["types/generated/index.d.ts"],
+            "@umbraci/jsmind/draggable-node": [
+                "types/generated/plugins/jsmind.draggable-node.d.ts"
+            ],
+            "@umbraci/jsmind/screenshot": ["types/generated/plugins/jsmind.screenshot.d.ts"],
+            "@umbraci/jsmind/multiline-text": ["types/generated/plugins/jsmind.multiline-text.d.ts"]
         }
     },
     "include": ["types/**/*.d.ts", "tests/types/fixtures/typescript-test.ts"],

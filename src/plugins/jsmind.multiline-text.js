@@ -3,7 +3,7 @@
  * @copyright 2014-2025 UmbraCi
  *
  * Project Home:
- *   https://github.com/UmbraCi/jsmind/
+ *   https://github.com/hizzgdev/jsmind/
  */
 
 import jsMind from '@umbraci/jsmind';
@@ -15,222 +15,201 @@ if (!jsMind) {
 const $ = jsMind.$;
 
 /**
- * Create a multiline-aware custom node render function.
- * This function wraps the user's custom_node_render (if any) and adds multiline support.
- * @param {Function|null} userCustomRender - User's custom node render function
- * @returns {Function} A custom node render function with multiline support
+ * Multiline Text Plugin
+ * Provides multiline text support for jsMind nodes
  */
-function createMultilineNodeRender(userCustomRender) {
+
+/**
+ * Default plugin options
+ * @typedef {Object} MultilineTextOptions
+ * @property {number} text_width - Maximum width for multiline text nodes (default: 200)
+ * @property {string} line_height - Line height for text (default: '1.5')
+ */
+const DEFAULT_OPTIONS = {
+    text_width: 200,
+    line_height: '1.5',
+};
+
+/**
+ * Create a custom node render function for multiline text
+ * @param {MultilineTextOptions} [options={}] - Plugin options
+ * @param {number} [options.text_width=200] - Maximum width for multiline text nodes
+ * @param {string} [options.line_height='1.5'] - Line height for text
+ * @returns {function(jsMind, HTMLElement, Node): boolean} Custom render function
+ * @example
+ * const options = {
+ *     view: {
+ *         custom_node_render: createMultilineRender({
+ *             text_width: 250,
+ *             line_height: '1.6',
+ *         })
+ *     }
+ * };
+ */
+export function createMultilineRender(options = {}) {
+    const opts = Object.assign({}, DEFAULT_OPTIONS, options);
+
     return function (jm, element, node) {
-        let customRendered = false;
-
-        // Try user's custom render first
-        if (userCustomRender && typeof userCustomRender === 'function') {
-            customRendered = userCustomRender(jm, element, node);
-        }
-
-        // If no custom render or custom render returns false, use default render
-        if (!customRendered) {
-            if (node.topic && node.topic.includes('\n')) {
-                // Multiline text render
-                element.textContent = node.topic;
-                element.style.whiteSpace = 'pre-wrap';
-                element.style.wordBreak = 'break-word';
-            } else {
-                // Single line text uses default render
-                if (jm.options.support_html) {
-                    $.h(element, node.topic);
-                } else {
-                    $.t(element, node.topic);
-                }
-            }
-        } else if (node.topic && node.topic.includes('\n')) {
-            // If user custom rendered, but is multiline text, apply multiline styles
+        if (node.topic && node.topic.includes('\n')) {
+            // Multiline text - apply styles BEFORE setting content
             element.style.whiteSpace = 'pre-wrap';
             element.style.wordBreak = 'break-word';
+            element.style.maxWidth = opts.text_width + 'px';
+            element.textContent = node.topic;
+            return true;
         }
-
-        return true;
+        // Single line text - use default render
+        return false;
     };
 }
 
 /**
- * Default options for multiline text plugin.
- * @typedef {Object} MultilineTextOptions
- * @property {number} [text_width] - Maximum text width in pixels
- * @property {string} [editor_border_color] - Border color for active editor
- * @property {string} [editor_border_width] - Border width for active editor
- * @property {boolean} [auto_resize] - Auto-resize editor as user types
- * @property {number} [min_height] - Minimum editor height
- * @property {number} [line_height] - Line height multiplier
+ * Re-render all nodes to apply multiline styles and recalculate sizes
+ * @param {import('../jsmind.js').default} jm - jsMind instance
+ * @private
  */
-const DEFAULT_OPTIONS = {
-    text_width: 200,
-    editor_border_color: '#4CAF50',
-    editor_border_width: '2px',
-    auto_resize: true,
-    min_height: 20,
-    line_height: 1.2,
-};
+function _rerender_all_nodes(jm) {
+    const view = jm.view;
+    const mind = jm.mind;
+
+    if (!mind || !mind.root) {
+        return;
+    }
+
+    // Collect all nodes to update
+    const nodesToUpdate = [];
+    for (const nodeId in mind.nodes) {
+        const node = mind.nodes[nodeId];
+        if (node._data && node._data.view && node._data.view.element) {
+            nodesToUpdate.push(node);
+        }
+    }
+
+    // Batch render nodes (only update DOM, no layout trigger)
+    for (const node of nodesToUpdate) {
+        const element = node._data.view.element;
+        view.render_node(element, node);
+    }
+
+    // Batch update node sizes (read all sizes at once to avoid layout thrashing)
+    for (const node of nodesToUpdate) {
+        if (jm.layout.is_visible(node)) {
+            const element = node._data.view.element;
+            node._data.view.width = element.clientWidth;
+            node._data.view.height = element.clientHeight;
+        }
+    }
+
+    // Finally recalculate layout and show (only trigger reflow/repaint once)
+    jm.layout.layout();
+    jm.view.show(false);
+}
 
 /**
- * Multiline text plugin for jsMind.
+ * Plugin initialization function
+ * @param {import('../jsmind.js').default} jm - jsMind instance
+ * @param {MultilineTextOptions} options - Plugin options
+ * @private
  */
-export class MultilineText {
-    /**
-     * Create multiline text plugin instance.
-     * @param {import('../jsmind.js').default} jm - jsMind instance
-     * @param {Partial<MultilineTextOptions>} options - Plugin options
-     */
-    constructor(jm, options) {
-        var opts = {};
-        jsMind.util.json.merge(opts, DEFAULT_OPTIONS);
-        jsMind.util.json.merge(opts, options);
-        this.jm = jm;
-        this.options = opts;
-        this.editing_node = null;
-        this.multiline_editor = null;
+function init(jm, options) {
+    console.log('[Multiline Plugin] Initializing...', options);
+
+    const opts = Object.assign({}, DEFAULT_OPTIONS, options);
+    const view = jm.view;
+
+    // Plugin state
+    let editing_node = null;
+    let multiline_editor = null;
+
+    // IMPORTANT: Re-set view.render_node to use custom render
+    // Because ViewProvider constructor already set it based on options.custom_node_render
+    // We need to ensure it uses the custom render function
+    if (view.opts.custom_node_render) {
+        view.render_node = view._custom_node_render.bind(view);
+        console.log('[Multiline Plugin] Re-bound view.render_node');
     }
 
-    /** Initialize the multiline text plugin. */
-    init() {
-        const view = this.jm.view;
-
-        // Save user's original custom_node_render
-        const userCustomRender = view.opts.custom_node_render;
-
-        // Create multiline-aware custom_node_render
-        const multilineRender = createMultilineNodeRender(userCustomRender);
-
-        // Update view.opts.custom_node_render
-        view.opts.custom_node_render = multilineRender;
-
-        // Update view.render_node to point to _custom_node_render
-        view.render_node = view._custom_node_render;
-
-        // Override edit methods
-        view.edit_node_begin = this.edit_node_begin.bind(this);
-        view.edit_node_end = this.edit_node_end.bind(this);
-
-        // Re-render all nodes to apply multiline styles
-        this._rerender_all_nodes();
+    // Re-render all nodes to apply multiline styles
+    if (jm.mind && jm.mind.root) {
+        _rerender_all_nodes(jm);
+        console.log('[Multiline Plugin] Re-rendered all nodes');
     }
 
     /**
-     * Re-render all nodes to apply multiline styles.
-     * Performance optimization: batch update to avoid multiple reflows/repaints.
-     * @private
+     * Begin editing a node with multiline support
+     * @param {import('../jsmind.node.js').Node} node
      */
-    _rerender_all_nodes() {
-        const view = this.jm.view;
-        const mind = this.jm.mind;
-
-        if (!mind || !mind.root) {
-            return;
-        }
-
-        // Collect all nodes to update
-        const nodesToUpdate = [];
-        for (const nodeId in mind.nodes) {
-            const node = mind.nodes[nodeId];
-            if (node._data && node._data.view && node._data.view.element) {
-                nodesToUpdate.push(node);
-            }
-        }
-
-        // Batch render nodes (only update DOM, no layout trigger)
-        for (const node of nodesToUpdate) {
-            const element = node._data.view.element;
-            view.render_node(element, node);
-        }
-
-        // Batch update node sizes (read all sizes at once to avoid layout thrashing)
-        for (const node of nodesToUpdate) {
-            if (this.jm.layout.is_visible(node)) {
-                const element = node._data.view.element;
-                node._data.view.width = element.clientWidth;
-                node._data.view.height = element.clientHeight;
-            }
-        }
-
-        // Finally recalculate layout and show (only trigger reflow/repaint once)
-        this.jm.layout.layout();
-        this.jm.view.show(false);
-    }
-
-    /**
-     * Begin editing a node with multiline support.
-     * @param {import('../jsmind.node.js').Node} node - Node to edit
-     */
-    edit_node_begin(node) {
+    view.edit_node_begin = function (node) {
+        console.log('[Multiline Plugin] edit_node_begin called', node);
         if (!node.topic) {
             return;
         }
 
         // End editing if another node is being edited
-        if (this.editing_node) {
-            this.edit_node_end();
+        if (editing_node) {
+            view.edit_node_end();
         }
 
-        this.editing_node = node;
-        this.jm.view.editing_node = node;
+        editing_node = node;
+        view.editing_node = node;
 
-        // Create editor
+        // Create editor (div with contentEditable)
         const editor = $.c('div');
         editor.contentEditable = 'plaintext-only';
         editor.className = 'jsmind-multiline-editor';
         editor.textContent = node.topic;
-        this.multiline_editor = editor;
+        multiline_editor = editor;
 
-        // Calculate editor width
+        // Get element and set editor styles to match
         const element = node._data.view.element;
-        const computedStyle = getComputedStyle(element);
-        const paddingX = parseInt(computedStyle.paddingLeft) + parseInt(computedStyle.paddingRight);
-        const editorWidth = Math.max(element.clientWidth - paddingX, this.options.text_width);
 
-        // Batch set styles (reduce reflows)
+        // Set editor styles to match element width, auto-expand height
         Object.assign(editor.style, {
-            width: editorWidth + 'px',
-            minHeight: this.options.min_height + 'px',
-            lineHeight: this.options.line_height,
-            border: `${this.options.editor_border_width} solid ${this.options.editor_border_color}`,
-            borderRadius: '4px',
-            padding: '4px',
+            width: 'auto',
+            minHeight: element.clientHeight + 'px',
+            lineHeight: opts.line_height,
+            border: 'none',
             outline: 'none',
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
+            boxSizing: 'border-box',
+            overflow: 'hidden',
         });
+
+        // Auto-expand height on input
+        const autoExpand = () => {
+            editor.style.height = 'auto';
+            editor.style.height = editor.scrollHeight + 'px';
+        };
+        $.on(editor, 'input', autoExpand);
+        // Initial expand
+        setTimeout(autoExpand, 0);
 
         // Keyboard events
         $.on(editor, 'keydown', e => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                this.edit_node_end();
+                e.stopPropagation(); // Prevent jsMind shortcut from triggering
+                view.edit_node_end();
             } else if (e.key === 'Escape') {
                 e.preventDefault();
-                this.cancel_editing();
+                e.stopPropagation();
+                cancel_editing();
             } else if (e.key === 'Tab') {
                 e.preventDefault();
-                this.edit_node_end();
+                e.stopPropagation();
+                view.edit_node_end();
             }
         });
 
-        // Blur event
+        // Blur event - save on blur
         $.on(editor, 'blur', () => {
             setTimeout(() => {
-                if (this.editing_node) {
-                    this.edit_node_end();
+                if (editing_node) {
+                    view.edit_node_end();
                 }
             }, 100);
         });
-
-        // Auto resize height
-        if (this.options.auto_resize) {
-            $.on(editor, 'input', () => {
-                editor.style.height = 'auto';
-                editor.style.height = Math.max(editor.scrollHeight, this.options.min_height) + 'px';
-            });
-        }
 
         // Replace node content and focus
         element.innerHTML = '';
@@ -244,86 +223,86 @@ export class MultilineText {
         const selection = $.w.getSelection();
         selection.removeAllRanges();
         selection.addRange(range);
-    }
+    };
 
     /**
-     * End editing and save changes.
+     * End editing and save changes
      */
-    edit_node_end() {
-        if (!this.editing_node || !this.multiline_editor) {
+    view.edit_node_end = function () {
+        if (!editing_node || !multiline_editor) {
             return;
         }
 
-        const node = this.editing_node;
-        const topic = (this.multiline_editor.textContent || '')
+        const node = editing_node;
+        const topic = (multiline_editor.textContent || '')
             .trim()
             .replace(/\r\n/g, '\n')
             .replace(/\r/g, '\n')
             .replace(/\n{3,}/g, '\n\n');
 
         // Clean up editor
-        this._cleanup_editor();
+        cleanup_editor();
 
         // Update node if content changed
         if (!jsMind.util.text.is_empty(topic) && node.topic !== topic) {
-            this.jm.update_node(node.id, topic);
+            jm.update_node(node.id, topic);
         } else {
-            this.jm.view.render_node(node._data.view.element, node);
+            view.render_node(node._data.view.element, node);
         }
-    }
+
+        // Focus panel
+        view.e_panel.focus();
+    };
 
     /**
-     * Cancel editing without saving changes.
+     * Cancel editing without saving changes
      */
-    cancel_editing() {
-        if (!this.editing_node || !this.multiline_editor) {
+    function cancel_editing() {
+        if (!editing_node || !multiline_editor) {
             return;
         }
 
-        const node = this.editing_node;
+        const node = editing_node;
 
         // Clean up editor
-        this._cleanup_editor();
+        cleanup_editor();
 
         // Re-render node
-        this.jm.view.render_node(node._data.view.element, node);
+        view.render_node(node._data.view.element, node);
+
+        // Focus panel
+        view.e_panel.focus();
     }
 
     /**
-     * Clean up editor and reset state.
-     * @private
+     * Clean up editor and reset state
      */
-    _cleanup_editor() {
-        if (!this.editing_node || !this.multiline_editor) {
+    function cleanup_editor() {
+        if (!editing_node || !multiline_editor) {
             return;
         }
 
-        const element = this.editing_node._data.view.element;
+        const element = editing_node._data.view.element;
 
         // Remove editor
-        if (this.multiline_editor.parentNode) {
-            this.multiline_editor.parentNode.removeChild(this.multiline_editor);
+        if (multiline_editor.parentNode) {
+            multiline_editor.parentNode.removeChild(multiline_editor);
         }
 
         // Reset styles and state
         element.style.zIndex = 'auto';
-        this.editing_node = null;
-        this.jm.view.editing_node = null;
-        this.multiline_editor = null;
-        this.jm.view.e_panel.focus();
+        editing_node = null;
+        view.editing_node = null;
+        multiline_editor = null;
     }
 }
 
-/**
- * Multiline text plugin registration.
- * @type {import('../jsmind.plugin.js').Plugin<Partial<MultilineTextOptions>>}
- */
-export const multiline_text_plugin = new jsMind.plugin('multiline_text', function (jm, options) {
-    const mt = new MultilineText(jm, options);
-    mt.init();
-    jm.multiline_text = mt;
-});
+// Register plugin
+jsMind.register_plugin(new jsMind.plugin('multiline_text', init));
 
-jsMind.register_plugin(multiline_text_plugin);
-
-export default MultilineText;
+// Export for ES6 modules
+export default {
+    name: 'multiline_text',
+    init,
+    createMultilineRender,
+};
