@@ -4,109 +4,147 @@ import terser from '@rollup/plugin-terser';
 const banner =
     '/**\n* @license BSD-3-Clause\n* @copyright 2014-2025 hizzgdev@163.com\n*\n* Project Home:\n*   https://github.com/hizzgdev/jsmind/\n*/';
 
-export default [
-    // jsmind core - UMD
-    {
-        input: 'src/jsmind.js',
-        output: {
-            name: 'jsMind',
-            file: 'es6/jsmind.js',
-            format: 'umd',
-            banner,
-            sourcemap: true,
-        },
-        plugins: [cleanup({ comments: 'none' }), terser({ output: { comments: 'all' } })],
+const cleanupPlugin = cleanup({
+    comments: 'none',
+});
+
+const terserPlugin = terser({
+    output: {
+        comments: 'all',
     },
-    // jsmind core - ES6
-    {
-        input: 'src/jsmind.js',
-        output: {
-            file: 'es6/jsmind.esm.js',
+});
+
+// Main library configuration
+const mainConfig = {
+    input: 'src/jsmind.js',
+    output: [
+        // ES Module - for modern bundlers with tree-shaking support
+        {
+            file: 'es/jsmind.js',
             format: 'es',
             banner,
             sourcemap: true,
         },
-        plugins: [cleanup({ comments: 'none' }), terser({ output: { comments: 'all' } })],
-    },
-    // draggable-node - UMD
-    {
-        input: 'src/plugins/jsmind.draggable-node.js',
-        output: {
+        // CommonJS - for require/legacy toolchains
+        {
+            file: 'lib/jsmind.js',
+            format: 'cjs',
+            banner,
+            sourcemap: true,
+            exports: 'auto',
+        },
+        // UMD - for direct <script> usage, exposes global jsMind
+        {
+            name: 'jsMind',
+            file: 'dist/jsmind.js',
+            format: 'umd',
+            banner,
+            sourcemap: true,
+        },
+    ],
+    plugins: [cleanupPlugin, terserPlugin],
+};
+
+// Draggable-node plugin configuration
+const draggableNodeConfig = {
+    input: 'src/plugins/jsmind.draggable-node.js',
+    output: [
+        // ES Module
+        {
+            file: 'es/jsmind.draggable-node.js',
+            format: 'es',
+            banner,
+            sourcemap: true,
+        },
+        // CommonJS
+        {
+            file: 'lib/jsmind.draggable-node.js',
+            format: 'cjs',
+            banner,
+            sourcemap: true,
+            exports: 'named',
+        },
+        // UMD
+        {
             name: 'jsMindDraggableNode',
-            file: 'es6/jsmind.draggable-node.js',
+            file: 'dist/jsmind.draggable-node.js',
             format: 'umd',
             banner,
             sourcemap: true,
             globals: { '@umbraci/jsmind': 'jsMind' },
             exports: 'named',
         },
-        external: ['@umbraci/jsmind'],
-        plugins: [cleanup({ comments: 'none' }), terser({ output: { comments: 'all' } })],
-    },
-    // draggable-node - ES6
-    {
-        input: 'src/plugins/jsmind.draggable-node.js',
-        output: {
-            file: 'es6/jsmind.draggable-node.esm.js',
+    ],
+    external: ['@umbraci/jsmind'],
+    plugins: [cleanupPlugin, terserPlugin],
+};
+
+// Screenshot plugin configuration
+const screenshotConfig = {
+    input: 'src/plugins/jsmind.screenshot.js',
+    output: [
+        // ES Module
+        {
+            file: 'es/jsmind.screenshot.js',
             format: 'es',
             banner,
             sourcemap: true,
         },
-        external: ['@umbraci/jsmind'],
-        plugins: [cleanup({ comments: 'none' }), terser({ output: { comments: 'all' } })],
-    },
-    // screenshot - UMD
-    {
-        input: 'src/plugins/jsmind.screenshot.js',
-        output: {
+        // CommonJS
+        {
+            file: 'lib/jsmind.screenshot.js',
+            format: 'cjs',
+            banner,
+            sourcemap: true,
+            exports: 'named',
+        },
+        // UMD
+        {
             name: 'jsMindScreenshot',
-            file: 'es6/jsmind.screenshot.js',
+            file: 'dist/jsmind.screenshot.js',
             format: 'umd',
             banner,
             sourcemap: true,
             globals: { '@umbraci/jsmind': 'jsMind', 'dom-to-image': 'domtoimage' },
             exports: 'named',
         },
-        external: ['@umbraci/jsmind', 'dom-to-image'],
-        plugins: [cleanup({ comments: 'none' }), terser({ output: { comments: 'all' } })],
-    },
-    // screenshot - ES6
-    {
-        input: 'src/plugins/jsmind.screenshot.js',
-        output: {
-            file: 'es6/jsmind.screenshot.esm.js',
+    ],
+    external: ['@umbraci/jsmind', 'dom-to-image'],
+    plugins: [cleanupPlugin, terserPlugin],
+};
+
+// Multiline-text plugin configuration
+const multilineTextConfig = {
+    input: 'src/plugins/jsmind.multiline-text.js',
+    output: [
+        // ES Module
+        {
+            file: 'es/jsmind.multiline-text.js',
             format: 'es',
             banner,
             sourcemap: true,
         },
-        external: ['@umbraci/jsmind', 'dom-to-image'],
-        plugins: [cleanup({ comments: 'none' }), terser({ output: { comments: 'all' } })],
-    },
-    // multiline-text - UMD
-    {
-        input: 'src/plugins/jsmind.multiline-text.js',
-        output: {
+        // CommonJS
+        {
+            file: 'lib/jsmind.multiline-text.js',
+            format: 'cjs',
+            banner,
+            sourcemap: true,
+            exports: 'named',
+        },
+        // UMD
+        {
             name: 'jsMindMultilineText',
-            file: 'es6/jsmind.multiline-text.js',
+            file: 'dist/jsmind.multiline-text.js',
             format: 'umd',
             banner,
             sourcemap: true,
             globals: { '@umbraci/jsmind': 'jsMind' },
             exports: 'named',
         },
-        external: ['@umbraci/jsmind'],
-        plugins: [cleanup({ comments: 'none' }), terser({ output: { comments: 'all' } })],
-    },
-    // multiline-text - ES6
-    {
-        input: 'src/plugins/jsmind.multiline-text.js',
-        output: {
-            file: 'es6/jsmind.multiline-text.esm.js',
-            format: 'es',
-            banner,
-            sourcemap: true,
-        },
-        external: ['@umbraci/jsmind'],
-        plugins: [cleanup({ comments: 'none' }), terser({ output: { comments: 'all' } })],
-    },
-];
+    ],
+    external: ['@umbraci/jsmind'],
+    plugins: [cleanupPlugin, terserPlugin],
+};
+
+export default [mainConfig, draggableNodeConfig, screenshotConfig, multilineTextConfig];
