@@ -20,9 +20,21 @@
         <button onclick="save_nodetree();">nodetree</button>
         <button onclick="replay();">replay</button>
         <div id="jsmind_container"></div>
-        <script type="text/javascript" src="../es6/jsmind.js"></script>
-        <script type="text/javascript" src="../es6/jsmind.draggable-node.js"></script>
-        <script type="text/javascript" src="../es6/jsmind.multiline-text.js"></script>
+        <div id="history_controls" style="margin: 8px 0;">
+            <button onclick="h_undo()">Undo</button>
+            <button onclick="h_redo()">Redo</button>
+            <button onclick="h_add()">Add Snapshot</button>
+            <button onclick="h_snapA()">Set A</button>
+            <button onclick="h_snapB()">Set B</button>
+            <button onclick="h_diff()">Diff A→B</button>
+            <button onclick="h_info()">Stack Info</button>
+        </div>
+
+        <script type="text/javascript" src="../dist/jsmind.js"></script>
+        <script type="text/javascript" src="../dist/jsmind.draggable-node.js"></script>
+        <script type="text/javascript" src="../dist/jsmind.multiline-text.js"></script>
+        <!-- 新增：历史记录插件（UMD 构建） -->
+        <script type="text/javascript" src="../dist/jsmind.history.js"></script>
         <script type="text/javascript" src="../features/jsmind.shell.js"></script>
         <script type="text/javascript">
             var _jm = null;
@@ -69,6 +81,13 @@
                         },
                     ],
                 };
+                // 注册增强插件：历史记录（启用撤销/重做快捷键）
+                // 兼容 UMD 命名/导出方式：优先使用命名导出 HistoryPlugin，其次 default，最后整个对象本身
+                jsMind.usePlugin(
+                    jsMindHistory.HistoryPlugin || jsMindHistory.default || jsMindHistory,
+                    { keymap: { enabled: true, redoUsesY: false } }
+                );
+
                 var options = {
                     container: 'jsmind_container',
                     editable: true,
@@ -122,6 +141,47 @@
                     shell.replay();
                 }
             }
+
+            // ----- History demo helpers (top-level) -----
+            var snapA = null, snapB = null;
+            function h_undo() {
+                if (_jm && _jm.history) {
+                    var ok = _jm.history.back();
+                    console.log('undo', ok, 'index/len', _jm.history.index(), _jm.history.length());
+                }
+            }
+            function h_redo() {
+                if (_jm && _jm.history) {
+                    var ok = _jm.history.forward();
+                    console.log('redo', ok, 'index/len', _jm.history.index(), _jm.history.length());
+                }
+            }
+            function h_add() {
+                if (_jm && _jm.history) {
+                    _jm.history.add('manual-click');
+                    console.log('add snapshot, index/len', _jm.history.index(), _jm.history.length());
+                }
+            }
+            function h_snapA() {
+                if (_jm && _jm.history) { snapA = _jm.history.exportSnapshot(); console.log('Snapshot A set'); }
+            }
+            function h_snapB() {
+                if (_jm && _jm.history) { snapB = _jm.history.exportSnapshot(); console.log('Snapshot B set'); }
+            }
+            function h_diff() {
+                if (!snapA || !snapB) { alert('请先点击 Set A / Set B'); return; }
+                var d = _jm.history.diff(snapA, snapB, { fields: ['id','topic','expanded','direction']});
+                console.log('Diff A→B', d);
+                alert('Diff: created=' + d.created.length + ', updated=' + d.updated.length + ', deleted=' + d.deleted.length + (d.truncated ? ' (truncated)' : ''));
+            }
+            function h_info() {
+                if (_jm && _jm.history) {
+                    var m = _jm.history.getStack();
+                    console.log('Stack meta', m);
+                    alert('index/length = ' + _jm.history.index() + '/' + _jm.history.length());
+                }
+            }
+
 
             load_jsmind();
         </script>

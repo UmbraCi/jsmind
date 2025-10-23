@@ -147,4 +147,39 @@ const multilineTextConfig = {
     plugins: [cleanupPlugin, terserPlugin],
 };
 
-export default [mainConfig, draggableNodeConfig, screenshotConfig, multilineTextConfig];
+
+// History plugin configuration
+const historyConfig = {
+    input: 'src/plugins/history/jsmind.history.js',
+    output: [
+        // ES Module
+        {
+            file: 'es/jsmind.history.js',
+            format: 'es',
+            banner,
+            sourcemap: true,
+        },
+        // CommonJS
+        {
+            file: 'lib/jsmind.history.js',
+            format: 'cjs',
+            banner,
+            sourcemap: true,
+            exports: 'named',
+        },
+        // UMD
+        {
+            name: 'jsMindHistory',
+            file: 'dist/jsmind.history.js',
+            format: 'umd',
+            banner,
+            sourcemap: true,
+            globals: { '@umbraci/jsmind': 'jsMind' },
+            exports: 'named',
+        },
+    ],
+    external: ['@umbraci/jsmind'],
+    plugins: [cleanupPlugin, terserPlugin],
+};
+
+export default [mainConfig, draggableNodeConfig, screenshotConfig, multilineTextConfig, historyConfig];

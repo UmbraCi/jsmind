@@ -28,6 +28,11 @@
             "require": "./lib/jsmind.multiline-text.js",
             "types": "./types/generated/plugins/jsmind.multiline-text.d.ts"
         },
+        "./history": {
+            "import": "./es/jsmind.history.js",
+            "require": "./lib/jsmind.history.js",
+            "types": "./types/generated/plugins/jsmind.history.d.ts"
+        },
         "./style/jsmind.css": "./style/jsmind.css"
     },
     "directories": {
@@ -93,5 +98,8 @@
     },
     "sideEffects": [
         "./es6/*"
-    ]
+    ],
+    "dependencies": {
+        "fast-deep-equal": "^3.1.3"
+    }
 }
