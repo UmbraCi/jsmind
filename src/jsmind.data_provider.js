@@ -44,14 +44,15 @@ export class DataProvider {
             df = 'freemind';
         }
 
+        var fieldNames = this.jm.options.fieldNames;
         if (df == 'node_array') {
-            mind = format.node_array.get_mind(mind_data);
+            mind = format.node_array.get_mind(mind_data, fieldNames);
         } else if (df == 'node_tree') {
-            mind = format.node_tree.get_mind(mind_data);
+            mind = format.node_tree.get_mind(mind_data, fieldNames);
         } else if (df == 'freemind') {
-            mind = format.freemind.get_mind(mind_data);
+            mind = format.freemind.get_mind(mind_data, fieldNames);
         } else if (df == 'text') {
-            mind = format.text.get_mind(mind_data);
+            mind = format.text.get_mind(mind_data, fieldNames);
         } else {
             logger.warn('unsupported format');
         }
@@ -64,10 +65,11 @@ export class DataProvider {
      */
     get_data(data_format) {
         var data = null;
+        var fieldNames = this.jm.options.fieldNames;
         if (data_format == 'node_array') {
-            data = format.node_array.get_data(this.jm.mind);
+            data = format.node_array.get_data(this.jm.mind, fieldNames);
         } else if (data_format == 'node_tree') {
-            data = format.node_tree.get_data(this.jm.mind);
+            data = format.node_tree.get_data(this.jm.mind, fieldNames);
         } else if (data_format == 'freemind') {
             data = format.freemind.get_data(this.jm.mind);
         } else if (data_format == 'text') {

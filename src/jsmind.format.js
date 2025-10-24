@@ -70,18 +70,18 @@ export const format = {
             format: 'node_tree',
             data: { id: 'root', topic: 'jsMind node_tree example' },
         },
-        /** @param {NodeTreeFormat} source @returns {Mind} */
-        get_mind: function (source) {
+        /** @param {NodeTreeFormat} source @param {Record<string,string>=} fieldNames @returns {Mind} */
+        get_mind: function (source, fieldNames) {
             var df = format.node_tree;
             var mind = new Mind();
             mind.name = source.meta.name;
             mind.author = source.meta.author;
             mind.version = source.meta.version;
-            df._parse(mind, source.data);
+            df._parse(mind, source.data, fieldNames);
             return mind;
         },
-        /** @param {Mind} mind */
-        get_data: function (mind) {
+        /** @param {Mind} mind @param {Record<string,string>=} fieldNames */
+        get_data: function (mind, fieldNames) {
             var df = format.node_tree;
             var json = {};
             json.meta = {
@@ -90,19 +90,24 @@ export const format = {
                 version: mind.version,
             };
             json.format = 'node_tree';
-            json.data = df._build_node(mind.root);
+            json.data = df._build_node(mind.root, fieldNames);
             return json;
         },
 
-        /** @param {Mind} mind @param {NodeTreeData} node_root */
-        _parse: function (mind, node_root) {
+        /** @param {Mind} mind @param {NodeTreeData} node_root @param {Record<string,string>=} fieldNames */
+        _parse: function (mind, node_root, fieldNames) {
             var df = format.node_tree;
-            var data = df._extract_data(node_root);
-            mind.set_root(node_root.id, node_root.topic, data);
-            if ('children' in node_root) {
-                var children = node_root.children;
+            var fn = fieldNames || {};
+            var idKey = fn.id || 'id';
+            var topicKey = fn.topic || 'topic';
+            var childrenKey = fn.children || 'children';
+
+            var data = df._extract_data(node_root, fieldNames);
+            mind.set_root(node_root[idKey], node_root[topicKey], data);
+            if (childrenKey in node_root) {
+                var children = node_root[childrenKey];
                 for (var i = 0; i < children.length; i++) {
-                    df._extract_subnode(mind, mind.root, children[i]);
+                    df._extract_subnode(mind, mind.root, children[i], fieldNames);
                 }
             }
         },
@@ -111,17 +116,25 @@ export const format = {
          * Extract custom data from node JSON, excluding standard properties.
          * @private
          * @param {Record<string, unknown>} node_json - Node JSON object
+         * @param {Record<string,string>=} fieldNames - Field names mapping
          * @returns {Record<string,any>} Custom data object
          */
-        _extract_data: function (node_json) {
+        _extract_data: function (node_json, fieldNames) {
+            var fn = fieldNames || {};
+            var idKey = fn.id || 'id';
+            var topicKey = fn.topic || 'topic';
+            var childrenKey = fn.children || 'children';
+            var directionKey = fn.direction || 'direction';
+            var expandedKey = fn.expanded || 'expanded';
+
             var data = {};
             for (var k in node_json) {
                 if (
-                    k == 'id' ||
-                    k == 'topic' ||
-                    k == 'children' ||
-                    k == 'direction' ||
-                    k == 'expanded'
+                    k == idKey ||
+                    k == topicKey ||
+                    k == childrenKey ||
+                    k == directionKey ||
+                    k == expandedKey
                 ) {
                     continue;
                 }
@@ -130,26 +143,33 @@ export const format = {
             return data;
         },
 
-        /** @param {Mind} mind @param {Node} node_parent @param {NodeTreeData} node_json */
-        _extract_subnode: function (mind, node_parent, node_json) {
+        /** @param {Mind} mind @param {Node} node_parent @param {NodeTreeData} node_json @param {Record<string,string>=} fieldNames */
+        _extract_subnode: function (mind, node_parent, node_json, fieldNames) {
             var df = format.node_tree;
-            var data = df._extract_data(node_json);
+            var fn = fieldNames || {};
+            var idKey = fn.id || 'id';
+            var topicKey = fn.topic || 'topic';
+            var childrenKey = fn.children || 'children';
+            var directionKey = fn.direction || 'direction';
+            var expandedKey = fn.expanded || 'expanded';
+
+            var data = df._extract_data(node_json, fieldNames);
             var d = null;
             if (node_parent.isroot) {
-                d = node_json.direction == 'left' ? Direction.left : Direction.right;
+                d = node_json[directionKey] == 'left' ? Direction.left : Direction.right;
             }
             var node = mind.add_node(
                 node_parent,
-                node_json.id,
-                node_json.topic,
+                node_json[idKey],
+                node_json[topicKey],
                 data,
                 d,
-                node_json.expanded
+                node_json[expandedKey]
             );
-            if (!!node_json['children']) {
-                var children = node_json.children;
+            if (!!node_json[childrenKey]) {
+                var children = node_json[childrenKey];
                 for (var i = 0; i < children.length; i++) {
-                    df._extract_subnode(mind, node, children[i]);
+                    df._extract_subnode(mind, node, children[i], fieldNames);
                 }
             }
         },
@@ -158,20 +178,28 @@ export const format = {
          * Build JSON object from a node.
          * @private
          * @param {Node} node - Node to convert
+         * @param {Record<string,string>=} fieldNames - Field names mapping
          * @returns {NodeTreeData} JSON representation of node
          */
-        _build_node: function (node) {
+        _build_node: function (node, fieldNames) {
             var df = format.node_tree;
             if (!(node instanceof Node)) {
                 return;
             }
-            var o = {
-                id: node.id,
-                topic: node.topic,
-                expanded: node.expanded,
-            };
+            var fn = fieldNames || {};
+            var idKey = fn.id || 'id';
+            var topicKey = fn.topic || 'topic';
+            var childrenKey = fn.children || 'children';
+            var directionKey = fn.direction || 'direction';
+            var expandedKey = fn.expanded || 'expanded';
+
+            var o = {};
+            o[idKey] = node.id;
+            o[topicKey] = node.topic;
+            o[expandedKey] = node.expanded;
+
             if (!!node.parent && node.parent.isroot) {
-                o.direction = node.direction == Direction.left ? 'left' : 'right';
+                o[directionKey] = node.direction == Direction.left ? 'left' : 'right';
             }
             if (node.data != null) {
                 var node_data = node.data;
@@ -181,9 +209,9 @@ export const format = {
             }
             var children = node.children;
             if (children.length > 0) {
-                o.children = [];
+                o[childrenKey] = [];
                 for (var i = 0; i < children.length; i++) {
-                    o.children.push(df._build_node(children[i]));
+                    o[childrenKey].push(df._build_node(children[i], fieldNames));
                 }
             }
             return o;
@@ -197,19 +225,19 @@ export const format = {
             data: [{ id: 'root', topic: 'jsMind node_array example', isroot: true }],
         },
 
-        /** @param {NodeArrayFormat} source @returns {Mind} */
-        get_mind: function (source) {
+        /** @param {NodeArrayFormat} source @param {Record<string,string>=} fieldNames @returns {Mind} */
+        get_mind: function (source, fieldNames) {
             var df = format.node_array;
             var mind = new Mind();
             mind.name = source.meta.name;
             mind.author = source.meta.author;
             mind.version = source.meta.version;
-            df._parse(mind, source.data);
+            df._parse(mind, source.data, fieldNames);
             return mind;
         },
 
-        /** @param {Mind} mind */
-        get_data: function (mind) {
+        /** @param {Mind} mind @param {Record<string,string>=} fieldNames */
+        get_data: function (mind, fieldNames) {
             var df = format.node_array;
             var json = {};
             json.meta = {
@@ -219,33 +247,38 @@ export const format = {
             };
             json.format = 'node_array';
             json.data = [];
-            df._array(mind, json.data);
+            df._array(mind, json.data, fieldNames);
             return json;
         },
 
-        /** @param {Mind} mind @param {NodeArrayItem[]} node_array */
-        _parse: function (mind, node_array) {
+        /** @param {Mind} mind @param {NodeArrayItem[]} node_array @param {Record<string,string>=} fieldNames */
+        _parse: function (mind, node_array, fieldNames) {
             var df = format.node_array;
             var nodes = node_array.slice(0);
             // reverse array for improving looping performance
             nodes.reverse();
-            var root_node = df._extract_root(mind, nodes);
+            var root_node = df._extract_root(mind, nodes, fieldNames);
             if (!!root_node) {
-                df._extract_subnode(mind, root_node, nodes);
+                df._extract_subnode(mind, root_node, nodes, fieldNames);
             } else {
                 logger.error('root node can not be found');
             }
         },
 
-        /** @param {Mind} mind @param {NodeArrayItem[]} node_array */
-        _extract_root: function (mind, node_array) {
+        /** @param {Mind} mind @param {NodeArrayItem[]} node_array @param {Record<string,string>=} fieldNames */
+        _extract_root: function (mind, node_array, fieldNames) {
             var df = format.node_array;
+            var fn = fieldNames || {};
+            var idKey = fn.id || 'id';
+            var topicKey = fn.topic || 'topic';
+            var isrootKey = fn.isroot || 'isroot';
+
             var i = node_array.length;
             while (i--) {
-                if ('isroot' in node_array[i] && node_array[i].isroot) {
+                if (isrootKey in node_array[i] && node_array[i][isrootKey]) {
                     var root_json = node_array[i];
-                    var data = df._extract_data(root_json);
-                    var node = mind.set_root(root_json.id, root_json.topic, data);
+                    var data = df._extract_data(root_json, fieldNames);
+                    var node = mind.set_root(root_json[idKey], root_json[topicKey], data);
                     node_array.splice(i, 1);
                     return node;
                 }
@@ -253,33 +286,40 @@ export const format = {
             return null;
         },
 
-        /** @param {Mind} mind @param {Node} parent_node @param {NodeArrayItem[]} node_array */
-        _extract_subnode: function (mind, parent_node, node_array) {
+        /** @param {Mind} mind @param {Node} parent_node @param {NodeArrayItem[]} node_array @param {Record<string,string>=} fieldNames */
+        _extract_subnode: function (mind, parent_node, node_array, fieldNames) {
             var df = format.node_array;
+            var fn = fieldNames || {};
+            var idKey = fn.id || 'id';
+            var topicKey = fn.topic || 'topic';
+            var parentidKey = fn.parentid || 'parentid';
+            var directionKey = fn.direction || 'direction';
+            var expandedKey = fn.expanded || 'expanded';
+
             var i = node_array.length;
             var node_json = null;
             var data = null;
             var extract_count = 0;
             while (i--) {
                 node_json = node_array[i];
-                if (node_json.parentid == parent_node.id) {
-                    data = df._extract_data(node_json);
+                if (node_json[parentidKey] == parent_node.id) {
+                    data = df._extract_data(node_json, fieldNames);
                     var d = null;
-                    var node_direction = node_json.direction;
+                    var node_direction = node_json[directionKey];
                     if (!!node_direction) {
                         d = node_direction == 'left' ? Direction.left : Direction.right;
                     }
                     var node = mind.add_node(
                         parent_node,
-                        node_json.id,
-                        node_json.topic,
+                        node_json[idKey],
+                        node_json[topicKey],
                         data,
                         d,
-                        node_json.expanded
+                        node_json[expandedKey]
                     );
                     node_array.splice(i, 1);
                     extract_count++;
-                    var sub_extract_count = df._extract_subnode(mind, node, node_array);
+                    var sub_extract_count = df._extract_subnode(mind, node, node_array, fieldNames);
                     if (sub_extract_count > 0) {
                         // reset loop index after extract subordinate node
                         i = node_array.length;
@@ -290,17 +330,25 @@ export const format = {
             return extract_count;
         },
 
-        /** @param {Record<string, unknown>} node_json */
-        _extract_data: function (node_json) {
+        /** @param {Record<string, unknown>} node_json @param {Record<string,string>=} fieldNames */
+        _extract_data: function (node_json, fieldNames) {
+            var fn = fieldNames || {};
+            var idKey = fn.id || 'id';
+            var topicKey = fn.topic || 'topic';
+            var parentidKey = fn.parentid || 'parentid';
+            var isrootKey = fn.isroot || 'isroot';
+            var directionKey = fn.direction || 'direction';
+            var expandedKey = fn.expanded || 'expanded';
+
             var data = {};
             for (var k in node_json) {
                 if (
-                    k == 'id' ||
-                    k == 'topic' ||
-                    k == 'parentid' ||
-                    k == 'isroot' ||
-                    k == 'direction' ||
-                    k == 'expanded'
+                    k == idKey ||
+                    k == topicKey ||
+                    k == parentidKey ||
+                    k == isrootKey ||
+                    k == directionKey ||
+                    k == expandedKey
                 ) {
                     continue;
                 }
@@ -309,31 +357,39 @@ export const format = {
             return data;
         },
 
-        /** @param {Mind} mind @param {NodeArrayItem[]} node_array */
-        _array: function (mind, node_array) {
+        /** @param {Mind} mind @param {NodeArrayItem[]} node_array @param {Record<string,string>=} fieldNames */
+        _array: function (mind, node_array, fieldNames) {
             var df = format.node_array;
-            df._array_node(mind.root, node_array);
+            df._array_node(mind.root, node_array, fieldNames);
         },
 
-        /** @param {Node} node @param {NodeArrayItem[]} node_array */
-        _array_node: function (node, node_array) {
+        /** @param {Node} node @param {NodeArrayItem[]} node_array @param {Record<string,string>=} fieldNames */
+        _array_node: function (node, node_array, fieldNames) {
             var df = format.node_array;
             if (!(node instanceof Node)) {
                 return;
             }
-            var o = {
-                id: node.id,
-                topic: node.topic,
-                expanded: node.expanded,
-            };
+            var fn = fieldNames || {};
+            var idKey = fn.id || 'id';
+            var topicKey = fn.topic || 'topic';
+            var parentidKey = fn.parentid || 'parentid';
+            var isrootKey = fn.isroot || 'isroot';
+            var directionKey = fn.direction || 'direction';
+            var expandedKey = fn.expanded || 'expanded';
+
+            var o = {};
+            o[idKey] = node.id;
+            o[topicKey] = node.topic;
+            o[expandedKey] = node.expanded;
+
             if (!!node.parent) {
-                o.parentid = node.parent.id;
+                o[parentidKey] = node.parent.id;
             }
             if (node.isroot) {
-                o.isroot = true;
+                o[isrootKey] = true;
             }
             if (!!node.parent && node.parent.isroot) {
-                o.direction = node.direction == Direction.left ? 'left' : 'right';
+                o[directionKey] = node.direction == Direction.left ? 'left' : 'right';
             }
             if (node.data != null) {
                 var node_data = node.data;
@@ -344,7 +400,7 @@ export const format = {
             node_array.push(o);
             var ci = node.children.length;
             for (var i = 0; i < ci; i++) {
-                df._array_node(node.children[i], node_array);
+                df._array_node(node.children[i], node_array, fieldNames);
             }
         },
     },
@@ -355,8 +411,8 @@ export const format = {
             format: 'freemind',
             data: '<map version="1.0.1"><node ID="root" TEXT="jsMind freemind example"/></map>',
         },
-        /** @param {{meta:MindMapMeta,data:string}} source @returns {Mind} */
-        get_mind: function (source) {
+        /** @param {{meta:MindMapMeta,data:string}} source @param {Record<string,string>=} fieldNames @returns {Mind} */
+        get_mind: function (source, fieldNames) {
             var df = format.freemind;
             var mind = new Mind();
             mind.name = source.meta.name;
@@ -365,12 +421,13 @@ export const format = {
             var xml = source.data;
             var xml_doc = df._parse_xml(xml);
             var xml_root = df._find_root(xml_doc);
+            // freemind format uses fixed XML attributes (ID, TEXT), fieldNames not applicable
             df._load_node(mind, null, xml_root);
             return mind;
         },
 
-        /** @param {Mind} mind */
-        get_data: function (mind) {
+        /** @param {Mind} mind @param {Record<string,string>=} fieldNames */
+        get_data: function (mind, fieldNames) {
             var df = format.freemind;
             var json = {};
             json.meta = {
@@ -381,6 +438,7 @@ export const format = {
             json.format = 'freemind';
             var xml_lines = [];
             xml_lines.push('<map version="1.0.1">');
+            // freemind format uses fixed XML attributes, fieldNames not applicable
             df._build_map(mind.root, xml_lines);
             xml_lines.push('</map>');
             json.data = xml_lines.join('');
@@ -565,14 +623,15 @@ export const format = {
             data: 'jsMind text example\n node1\n  node1-sub\n  node1-sub\n node2',
         },
         _line_regex: /\s*/,
-        /** @param {{meta:MindMapMeta,data:string}} source @returns {Mind} */
-        get_mind: function (source) {
+        /** @param {{meta:MindMapMeta,data:string}} source @param {Record<string,string>=} fieldNames @returns {Mind} */
+        get_mind: function (source, fieldNames) {
             var df = format.text;
             var mind = new Mind();
             mind.name = source.meta.name;
             mind.author = source.meta.author;
             mind.version = source.meta.version;
             var lines = source.data.split(/\n|\r/);
+            // text format uses indentation-based structure, fieldNames not applicable
             df._fill_nodes(mind, lines, 0, 0);
             return mind;
         },
