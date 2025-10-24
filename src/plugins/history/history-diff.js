@@ -7,7 +7,7 @@ import { deepEqual } from 'fast-equals';
 
 /**
  * @typedef {{ meta?: any, format?: 'node_tree', data: NodeTreeData }} NodeTreeFormat
- * @typedef {{ id: string, topic?: string, expanded?: boolean, direction?: 'left'|'right', data?: Record<string, any>, children?: NodeTreeData[] }} NodeTreeData
+ * @typedef {{ id?: string, topic?: string, expanded?: boolean, direction?: 'left'|'right', data?: Record<string, any>, children?: NodeTreeData[], [key: string]: any }} NodeTreeData
  */
 
 /**

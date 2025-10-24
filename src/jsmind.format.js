@@ -14,13 +14,20 @@ import { util } from './jsmind.util.js';
 /** @typedef {{name:string,author:string,version:string}} MindMapMeta */
 /**
  * Node tree data item
+ *
+ * Note: When using custom fieldNames configuration, the actual property names
+ * in your data may differ from these type definitions. For example, if you
+ * configure `fieldNames: { topic: 'name' }`, your data should use 'name'
+ * instead of 'topic'. The types shown here represent the default field names.
+ *
  * @typedef {{
- *   id: string,
- *   topic: string,
+ *   id?: string,
+ *   topic?: string,
  *   data?: Record<string, any>,
  *   direction?: (number|string),
  *   expanded?: boolean,
- *   children?: NodeTreeData[]
+ *   children?: NodeTreeData[],
+ *   [key: string]: any
  * }} NodeTreeData
  */
 /**
@@ -33,14 +40,22 @@ import { util } from './jsmind.util.js';
  */
 /**
  * Node array data item
+ *
+ * Note: When using custom fieldNames configuration, the actual property names
+ * in your data may differ from these type definitions. For example, if you
+ * configure `fieldNames: { topic: 'name', parentid: 'parent' }`, your data
+ * should use 'name' and 'parent' instead of 'topic' and 'parentid'. The types
+ * shown here represent the default field names.
+ *
  * @typedef {{
- *   id: string,
- *   topic: string,
+ *   id?: string,
+ *   topic?: string,
  *   parentid?: string,
  *   data?: Record<string, any>,
  *   direction?: (number|string),
  *   expanded?: boolean,
- *   isroot?: boolean
+ *   isroot?: boolean,
+ *   [key: string]: any
  * }} NodeArrayItem
  */
 /**

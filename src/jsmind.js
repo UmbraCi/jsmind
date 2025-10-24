@@ -543,7 +543,7 @@ export default class jsMind {
      * Add multiple nodes to the mind map with optimized performance.
      * Supports standard jsMind formats: node_tree, node_array, and freemind with nested children structure.
      * @param {string | import('./jsmind.node.js').Node} parent_node - Parent node for all new nodes
-     * @param {Array<{id: string, topic: string, data?: Record<string, any>, direction?: ('left'|'center'|'right'|'-1'|'0'|'1'|number), children?: Array}>} nodes_data - Array of node data objects with same format as add_node
+     * @param {Array<{id?: string, topic?: string, data?: Record<string, any>, direction?: ('left'|'center'|'right'|'-1'|'0'|'1'|number), children?: Array, [key: string]: any}>} nodes_data - Array of node data objects with same format as add_node
      * @returns {Array<import('./jsmind.node.js').Node|null>} Array of created nodes (flattened from all levels)
      */
     add_nodes(parent_node, nodes_data) {
