@@ -345,6 +345,10 @@ export class DraggableNode {
         if (!!nodeid) {
             var node = this.jm.get_node(nodeid);
             if (!node.isroot) {
+                // 检查节点是否允许拖拽
+                if (node.data && node.data.draggable === false) {
+                    return;
+                }
                 this.reset_shadow(el);
                 this.view_panel_rect = this.view_panel.getBoundingClientRect();
                 this.active_node = node;
