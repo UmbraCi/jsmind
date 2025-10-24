@@ -5,6 +5,7 @@
 * [Operation](3.operation.md)
 * [Experimental Features *](experimental-features.md)
   * [Screenshot (Export as Image)](plugin-screenshot.md)
+  * [History (Undo/Redo) *](plugin-history.md)
 * [Contribution](4.contribution.md)
 * [Development Guide](5.development.md)
 
@@ -17,6 +18,7 @@ Some contents in the documents are annotated with `experimental`, indicating tha
 List of Experimental Features:
 
 - [Screenshot (Export as Image)](plugin-screenshot.md)
+- [History (Undo/Redo)](plugin-history.md)
 
 
 copyright notice

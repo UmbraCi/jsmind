@@ -400,6 +400,7 @@ export default class jsMind {
     }
     /** reset view/layout/data */
     _reset() {
+        this.invoke_event_handle(EventType.reset, { data: [] });
         this.view.reset();
         this.layout.reset();
         this.data.reset();

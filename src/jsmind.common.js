@@ -51,7 +51,7 @@ export const Direction = {
     },
 };
 /** @enum {number} */
-export const EventType = { show: 1, resize: 2, edit: 3, select: 4 };
+export const EventType = { show: 1, resize: 2, edit: 3, select: 4, reset: 5, history_change: 6 };
 /** @enum {number} */
 export const Key = { meta: 1 << 13, ctrl: 1 << 12, alt: 1 << 11, shift: 1 << 10 };
 /** @enum {number} */

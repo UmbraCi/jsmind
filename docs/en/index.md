@@ -21,6 +21,7 @@ Table of Contents
   * Other Operations
 * [Experimental Features](experimental-features.md)
   * [Screenshot (Export as Image)](plugin-screenshot.md)
+  * [History (Undo/Redo)](plugin-history.md)
 * [Contribution](4.contribution.md)
 * [Development Guide](5.development.md)
 

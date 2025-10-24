@@ -21,6 +21,7 @@ test('test exported elements', () => {
     expect(EventType.resize).toBe(2);
     expect(EventType.edit).toBe(3);
     expect(EventType.select).toBe(4);
+    expect(EventType.reset).toBe(5);
     expect(Direction.center).toBe(0);
     expect(Key.meta).toBe(1 << 13);
     expect(Key.ctrl).toBe(1 << 12);

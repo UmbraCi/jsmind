@@ -6,6 +6,7 @@
 * [界面操控](3.operation.md)
 * [实验性功能 *](experimental-features.md)
   * [截图 (导出图片)](plugin-screenshot.md)
+  * [历史记录 (撤销/重做)](plugin-history.md)
 * [参与贡献](4.contribution.md)
 * [贡献代码指南](5.development.md)
 
@@ -16,6 +17,7 @@
 
 目前提供的实验性功能有：
 - [截图 (导出图片)](plugin-screenshot.md) : 可将显示的思维导图导出为一张图片。
+- [历史记录 (撤销/重做)](plugin-history.md) : 提供完整的撤销/重做功能，支持历史记录管理和快照对比。
 
 
 

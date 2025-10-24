@@ -19,15 +19,17 @@
         <input type="file" onchange="load_file(this);" />
         <button onclick="save_nodetree();">nodetree</button>
         <button onclick="replay();">replay</button>
+        <button onclick="switch_mindmap();" style="background-color: #4CAF50; color: white; font-weight: bold;">切换脑图</button>
         <div id="jsmind_container"></div>
         <div id="history_controls" style="margin: 8px 0;">
-            <button onclick="h_undo()">Undo</button>
-            <button onclick="h_redo()">Redo</button>
+            <button id="btn_undo" onclick="h_undo()">Undo</button>
+            <button id="btn_redo" onclick="h_redo()">Redo</button>
             <button onclick="h_add()">Add Snapshot</button>
             <button onclick="h_snapA()">Set A</button>
             <button onclick="h_snapB()">Set B</button>
             <button onclick="h_diff()">Diff A→B</button>
             <button onclick="h_info()">Stack Info</button>
+            <span id="history_status" style="margin-left: 10px; color: #666;"></span>
         </div>
 
         <script type="text/javascript" src="../dist/jsmind.js"></script>
@@ -110,6 +112,25 @@
                 };
                 _jm = new jsMind(options);
                 _jm.show(mind);
+
+                // 监听历史栈状态变化事件，自动更新按钮状态
+                _jm.add_event_listener(function(type, data) {
+                    if (type === jsMind.event_type.history_change) {
+                        // 更新 Undo/Redo 按钮状态
+                        var btnUndo = document.getElementById('btn_undo');
+                        var btnRedo = document.getElementById('btn_redo');
+                        var statusSpan = document.getElementById('history_status');
+
+                        if (btnUndo) btnUndo.disabled = !data.canBack;
+                        if (btnRedo) btnRedo.disabled = !data.canForward;
+                        if (statusSpan) {
+                            statusSpan.textContent = 'History: ' + (data.index + 1) + ' / ' + data.length;
+                        }
+
+                        console.log('[history_change]', data);
+                    }
+                });
+
                 // jm.set_readonly(true);
                 // var mind_data = jm.get_data();
                 // alert(mind_data);
@@ -180,6 +201,128 @@
                     console.log('Stack meta', m);
                     alert('index/length = ' + _jm.history.index() + '/' + _jm.history.length());
                 }
+            }
+
+            // ----- Switch mindmap demo -----
+            var currentMindIndex = 0;
+            var mindmaps = [
+                // 第一个脑图（默认）
+                {
+                    meta: {
+                        name: 'demo',
+                        author: 'hizzgdev@163.com',
+                        version: '0.2',
+                    },
+                    format: 'node_array',
+                    data: [
+                        { id: 'root', isroot: true, topic: 'jsMind\n多行文本支持' },
+                        {
+                            id: 'sub1',
+                            parentid: 'root',
+                            topic: '功能特性\n- 多行编辑\n- 自动换行\n- 拖拽支持',
+                        },
+                        { id: 'sub11', parentid: 'sub1', topic: '编辑方式\nCtrl+Enter 完成编辑' },
+                        {
+                            id: 'sub12',
+                            parentid: 'sub1',
+                            topic: '文本换行\n支持长文本自动换行显示',
+                        },
+                        { id: 'sub13', parentid: 'sub1', topic: '样式支持\n可自定义宽度和高度' },
+                        { id: 'sub2', parentid: 'root', topic: '使用说明\n双击节点开始编辑' },
+                        {
+                            id: 'sub21',
+                            parentid: 'sub2',
+                            topic: '快捷键\nEsc: 取消编辑\nCtrl+Enter: 完成编辑',
+                        },
+                        {
+                            id: 'sub22',
+                            parentid: 'sub2',
+                            topic: '拖拽功能\n可以拖拽节点到其他位置',
+                        },
+                        {
+                            id: 'sub3',
+                            parentid: 'root',
+                            topic: '技术实现\n基于 contenteditable\n支持 HTML 内容',
+                        },
+                    ],
+                },
+                // 第二个脑图
+                {
+                    meta: {
+                        name: 'project-plan',
+                        author: 'demo',
+                        version: '1.0',
+                    },
+                    format: 'node_array',
+                    data: [
+                        { id: 'root2', isroot: true, topic: '项目计划' },
+                        { id: 'phase1', parentid: 'root2', topic: '第一阶段：需求分析' },
+                        { id: 'phase1-1', parentid: 'phase1', topic: '用户调研' },
+                        { id: 'phase1-2', parentid: 'phase1', topic: '需求文档' },
+                        { id: 'phase2', parentid: 'root2', topic: '第二阶段：设计开发' },
+                        { id: 'phase2-1', parentid: 'phase2', topic: 'UI 设计' },
+                        { id: 'phase2-2', parentid: 'phase2', topic: '前端开发' },
+                        { id: 'phase2-3', parentid: 'phase2', topic: '后端开发' },
+                        { id: 'phase3', parentid: 'root2', topic: '第三阶段：测试上线' },
+                        { id: 'phase3-1', parentid: 'phase3', topic: '功能测试' },
+                        { id: 'phase3-2', parentid: 'phase3', topic: '性能优化' },
+                        { id: 'phase3-3', parentid: 'phase3', topic: '正式上线' },
+                    ],
+                },
+                // 第三个脑图
+                {
+                    meta: {
+                        name: 'learning-path',
+                        author: 'demo',
+                        version: '1.0',
+                    },
+                    format: 'node_array',
+                    data: [
+                        { id: 'root3', isroot: true, topic: '前端学习路线' },
+                        { id: 'basic', parentid: 'root3', topic: '基础知识' },
+                        { id: 'basic-1', parentid: 'basic', topic: 'HTML' },
+                        { id: 'basic-2', parentid: 'basic', topic: 'CSS' },
+                        { id: 'basic-3', parentid: 'basic', topic: 'JavaScript' },
+                        { id: 'framework', parentid: 'root3', topic: '框架学习' },
+                        { id: 'framework-1', parentid: 'framework', topic: 'React' },
+                        { id: 'framework-2', parentid: 'framework', topic: 'Vue' },
+                        { id: 'framework-3', parentid: 'framework', topic: 'Angular' },
+                        { id: 'advanced', parentid: 'root3', topic: '进阶技能' },
+                        { id: 'advanced-1', parentid: 'advanced', topic: 'TypeScript' },
+                        { id: 'advanced-2', parentid: 'advanced', topic: 'Webpack' },
+                        { id: 'advanced-3', parentid: 'advanced', topic: '性能优化' },
+                    ],
+                },
+            ];
+
+            function switch_mindmap() {
+                if (!_jm) {
+                    alert('jsMind 未初始化');
+                    return;
+                }
+
+                // 切换到下一个脑图
+                currentMindIndex = (currentMindIndex + 1) % mindmaps.length;
+                var nextMind = mindmaps[currentMindIndex];
+
+                console.log('切换到脑图 ' + (currentMindIndex + 1) + ':', nextMind.meta.name);
+                console.log('切换前历史栈状态:', _jm.history ? 'index=' + _jm.history.index() + ', length=' + _jm.history.length() : 'N/A');
+
+                // 调用 show 方法切换脑图
+                _jm.show(nextMind);
+
+                // 延迟检查历史栈状态（等待 history 插件初始化完成）
+                // 延迟时间需要大于 history 插件的 setTimeout 延迟（100ms）
+                setTimeout(function() {
+                    console.log('切换后历史栈状态:', _jm.history ? 'index=' + _jm.history.index() + ', length=' + _jm.history.length() : 'N/A');
+                    var expectedState = 'History: 1 / 1';
+                    var actualState = 'History: ' + (_jm.history.index() + 1) + ' / ' + _jm.history.length();
+                    if (actualState === expectedState) {
+                        alert('✅ 切换成功！\n脑图: ' + nextMind.meta.name + '\n历史栈状态: ' + actualState);
+                    } else {
+                        alert('⚠️ 切换成功，但历史栈状态异常！\n脑图: ' + nextMind.meta.name + '\n期望状态: ' + expectedState + '\n实际状态: ' + actualState);
+                    }
+                }, 150); // 延迟 150ms，确保 history 插件的 setTimeout(100ms) 已执行
             }
 
 

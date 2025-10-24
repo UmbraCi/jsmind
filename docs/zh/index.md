@@ -21,6 +21,7 @@
   * 其它操作
 * [实验性功能](experimental-features.md)
   * [截图 (导出图片)](plugin-screenshot.md)
+  * [历史记录 (撤销/重做)](plugin-history.md)
 * [参与贡献](4.contribution.md)
 * [贡献代码指南](5.development.md)
 

@@ -1,5 +1,6 @@
 import cleanup from 'rollup-plugin-cleanup';
 import terser from '@rollup/plugin-terser';
+import resolve from '@rollup/plugin-node-resolve';
 
 const banner =
     '/**\n* @license BSD-3-Clause\n* @copyright 2014-2025 hizzgdev@163.com\n*\n* Project Home:\n*   https://github.com/hizzgdev/jsmind/\n*/';
@@ -147,7 +148,6 @@ const multilineTextConfig = {
     plugins: [cleanupPlugin, terserPlugin],
 };
 
-
 // History plugin configuration
 const historyConfig = {
     input: 'src/plugins/history/jsmind.history.js',
@@ -174,12 +174,26 @@ const historyConfig = {
             format: 'umd',
             banner,
             sourcemap: true,
-            globals: { '@umbraci/jsmind': 'jsMind' },
+            globals: {
+                '@umbraci/jsmind': 'jsMind',
+            },
             exports: 'named',
         },
     ],
     external: ['@umbraci/jsmind'],
-    plugins: [cleanupPlugin, terserPlugin],
+    plugins: [
+        resolve({
+            preferBuiltins: false,
+        }),
+        cleanupPlugin,
+        terserPlugin,
+    ],
 };
 
-export default [mainConfig, draggableNodeConfig, screenshotConfig, multilineTextConfig, historyConfig];
+export default [
+    mainConfig,
+    draggableNodeConfig,
+    screenshotConfig,
+    multilineTextConfig,
+    historyConfig,
+];
