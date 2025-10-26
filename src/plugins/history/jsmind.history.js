@@ -12,6 +12,8 @@ import { diff as diffSnapshots } from './history-diff.js';
 
 /**
  * @typedef {import('../../jsmind.js').default} JsMind
+ * @typedef {import('./history-diff.js').DiffResult} DiffResult
+ * @typedef {import('./history-diff.js').DiffOptions} DiffOptions
  */
 
 const DEFAULT_OPTIONS = {
@@ -104,7 +106,20 @@ class HistoryPlugin extends EnhancedPlugin {
         jm.history.exportSnapshot = () => core.exportSnapshot();
         jm.history.importSnapshot = (data, applyOptions) => core.importSnapshot(data, applyOptions);
         jm.history.getStack = () => core.getStackMeta();
-        jm.history.diff = (a, b, opts) => diffSnapshots(a, b, opts);
+        jm.history.diff = (a, b, opts) => {
+            // Auto-inject fieldNames configuration if not explicitly provided
+            const fieldNames = this.jm.options.fieldNames;
+            const idKey = fieldNames?.id || 'id';
+            const topicKey = fieldNames?.topic || 'topic';
+            const childrenKey = fieldNames?.children || 'children';
+            const mergedOpts = {
+                fields: [topicKey, 'data', idKey],
+                idKey: idKey, // Pass idKey for pick() function
+                childrenKey: childrenKey, // Pass childrenKey for walk() function
+                ...opts,
+            };
+            return diffSnapshots(a, b, mergedOpts);
+        };
 
         // Bind events: detect mind-map switching, seed initial snapshot, capture edits
         this._listener = (type, payload) => {
@@ -230,7 +245,43 @@ class HistoryPlugin extends EnhancedPlugin {
 
             // stack & diff (wired in _initCore)
             getStack: () => ({ items: [], index: -1 }),
-            diff: (a, b, opts) => diffSnapshots(a, b, opts),
+            /**
+             * Compare two snapshots and return the differences.
+             * Automatically uses the configured fieldNames to ensure correct field comparison.
+             *
+             * @param {object} a - First snapshot (before state)
+             * @param {object} b - Second snapshot (after state)
+             * @param {DiffOptions} [opts] - Diff options. If opts.fields is provided, it will override the auto-detected fields.
+             * @returns {DiffResult} Diff result containing created, deleted, updated, moved, modified, and movedAndModified nodes
+             *
+             * @example
+             * // With default fieldNames
+             * const before = jm.get_data('node_tree');
+             * // ... make changes ...
+             * const after = jm.get_data('node_tree');
+             * const diff = jm.history.diff(before, after);
+             *
+             * @example
+             * // With custom fieldNames: { id: 'key', topic: 'name', children: 'items' }
+             * // The diff method automatically uses 'key', 'name', and 'items' instead of 'id', 'topic', and 'children'
+             * const diff = jm.history.diff(before, after);
+             * // diff.updated will correctly detect changes in the 'name' field
+             * // and correctly traverse the 'items' array
+             */
+            diff: (a, b, opts) => {
+                // Auto-inject fieldNames configuration if not explicitly provided
+                const fieldNames = this.jm.options.fieldNames;
+                const idKey = fieldNames?.id || 'id';
+                const topicKey = fieldNames?.topic || 'topic';
+                const childrenKey = fieldNames?.children || 'children';
+                const mergedOpts = {
+                    fields: [topicKey, 'data', idKey],
+                    idKey: idKey, // Pass idKey for pick() function
+                    childrenKey: childrenKey, // Pass childrenKey for walk() function
+                    ...opts,
+                };
+                return diffSnapshots(a, b, mergedOpts);
+            },
 
             // options getter (read-only view)
             getOptions: () => Object.assign({}, this.options),

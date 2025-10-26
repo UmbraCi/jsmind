@@ -29,6 +29,8 @@
             <button onclick="h_snapB()">Set B</button>
             <button onclick="h_diff()">Diff A→B</button>
             <button onclick="h_info()">Stack Info</button>
+            <button onclick="test_fieldnames_diff_step1()" style="background-color: #4CAF50; color: white;">Test FieldNames Diff (Step 1)</button>
+            <button onclick="test_fieldnames_diff_step2()" style="background-color: #2196F3; color: white;">Test FieldNames Diff (Step 2)</button>
             <span id="history_status" style="margin-left: 10px; color: #666;"></span>
         </div>
 
@@ -189,16 +191,41 @@
                 }
             }
             function h_snapA() {
-                if (_jm && _jm.history) { snapA = _jm.history.exportSnapshot(); console.log('Snapshot A set'); }
+                if (_jm && _jm.history) {
+                    snapA = _jm.history.exportSnapshot();
+                    console.log('Snapshot A set:', snapA);
+                }
             }
             function h_snapB() {
-                if (_jm && _jm.history) { snapB = _jm.history.exportSnapshot(); console.log('Snapshot B set'); }
+                if (_jm && _jm.history) {
+                    snapB = _jm.history.exportSnapshot();
+                    console.log('Snapshot B set:', snapB);
+                }
             }
             function h_diff() {
                 if (!snapA || !snapB) { alert('请先点击 Set A / Set B'); return; }
-                var d = _jm.history.diff(snapA, snapB, { fields: ['id','topic','expanded','direction']});
-                console.log('Diff A→B', d);
-                alert('Diff: created=' + d.created.length + ', updated=' + d.updated.length + ', deleted=' + d.deleted.length + (d.truncated ? ' (truncated)' : ''));
+
+                // Test 1: Auto-detect fieldNames (recommended)
+                console.log('=== Test 1: Auto-detect fieldNames ===');
+                var d1 = _jm.history.diff(snapA, snapB);
+                console.log('Diff A→B (auto):', d1);
+
+                // Test 2: Manual fields (should override auto-detection)
+                console.log('=== Test 2: Manual fields override ===');
+                var d2 = _jm.history.diff(snapA, snapB, { fields: ['name', 'data', 'id'] });
+                console.log('Diff A→B (manual):', d2);
+
+                // Test 3: Wrong fields (should miss changes)
+                console.log('=== Test 3: Wrong fields (should miss changes) ===');
+                var d3 = _jm.history.diff(snapA, snapB, { fields: ['topic', 'data', 'id'] });
+                console.log('Diff A→B (wrong):', d3);
+
+                // Display results
+                var msg = 'Test 1 (auto): created=' + d1.created.length + ', updated=' + d1.updated.length + ', deleted=' + d1.deleted.length + '\n';
+                msg += 'Test 2 (manual): created=' + d2.created.length + ', updated=' + d2.updated.length + ', deleted=' + d2.deleted.length + '\n';
+                msg += 'Test 3 (wrong): created=' + d3.created.length + ', updated=' + d3.updated.length + ', deleted=' + d3.deleted.length + '\n';
+                msg += '\n详细信息请查看控制台';
+                alert(msg);
             }
             function h_info() {
                 if (_jm && _jm.history) {
@@ -206,6 +233,100 @@
                     console.log('Stack meta', m);
                     alert('index/length = ' + _jm.history.index() + '/' + _jm.history.length());
                 }
+            }
+
+            // Test fieldNames diff functionality
+            // Step 1: Take snapshot before modification
+            var _test_snapshot_before = null;
+            function test_fieldnames_diff_step1() {
+                if (!_jm || !_jm.history) {
+                    alert('History plugin not available');
+                    return;
+                }
+
+                _test_snapshot_before = _jm.get_data('node_tree');
+                console.log('=== FieldNames Diff Test - Step 1 ===');
+                console.log('Configured fieldNames:', _jm.options.fieldNames);
+                console.log('Before snapshot taken:', _test_snapshot_before);
+
+                alert('✅ Step 1 完成!\n\n快照已保存。\n\n请手动修改任意节点的文本,然后点击 "Test FieldNames Diff (Step 2)" 按钮。');
+            }
+
+            // Step 2: Take snapshot after modification and compare
+            function test_fieldnames_diff_step2() {
+                if (!_jm || !_jm.history) {
+                    alert('History plugin not available');
+                    return;
+                }
+
+                if (!_test_snapshot_before) {
+                    alert('❌ 错误!\n\n请先点击 "Test FieldNames Diff (Step 1)" 按钮保存快照。');
+                    return;
+                }
+
+                // Get after snapshot
+                var after = _jm.get_data('node_tree');
+                console.log('=== FieldNames Diff Test - Step 2 ===');
+                console.log('After snapshot:', after);
+
+                // Test diff with auto-detection
+                var diff = _jm.history.diff(_test_snapshot_before, after);
+                console.log('Diff result:', diff);
+
+                // Verify the diff detected the change
+                var success = false;
+                var detectedField = null;
+                var changeDetails = [];
+
+                if (diff.updated && diff.updated.length > 0) {
+                    for (var i = 0; i < diff.updated.length; i++) {
+                        var update = diff.updated[i];
+                        console.log('Updated node ' + (i + 1) + ':', update);
+                        console.log('Changes:', update.changes);
+
+                        // Check if 'name' field change was detected
+                        for (var j = 0; j < update.changes.length; j++) {
+                            var change = update.changes[j];
+                            if (change.key === 'name') {
+                                success = true;
+                                detectedField = 'name';
+                                changeDetails.push({
+                                    nodeId: update.id,
+                                    before: change.before,
+                                    after: change.after
+                                });
+                            }
+                        }
+                    }
+                }
+
+                // Display result
+                var msg = '=== FieldNames Diff Test Result ===\n\n';
+                msg += 'Configured fieldNames.topic: "name"\n';
+                msg += 'Updates detected: ' + (diff.updated ? diff.updated.length : 0) + '\n';
+                if (success) {
+                    msg += '✅ SUCCESS: Diff correctly detected change in "' + detectedField + '" field!\n\n';
+                    msg += 'Changes:\n';
+                    for (var k = 0; k < changeDetails.length; k++) {
+                        var detail = changeDetails[k];
+                        msg += '- Node ' + detail.nodeId + ':\n';
+                        msg += '  Before: "' + detail.before + '"\n';
+                        msg += '  After: "' + detail.after + '"\n';
+                    }
+                } else {
+                    msg += '❌ FAILED: Diff did not detect change in "name" field\n';
+                    if (diff.updated && diff.updated.length > 0) {
+                        var fields = diff.updated[0].changes.map(function(c) { return c.key; }).join(', ');
+                        msg += 'Changes detected in fields: ' + fields;
+                    } else {
+                        msg += 'No changes detected. Did you modify any node?';
+                    }
+                }
+                msg += '\n\n详细信息请查看控制台';
+                alert(msg);
+
+                // Reset snapshot
+                _test_snapshot_before = null;
             }
 
             // ----- Switch mindmap demo -----

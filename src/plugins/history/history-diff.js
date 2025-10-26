@@ -82,13 +82,29 @@ import { deepEqual } from 'fast-equals';
 
 /**
  * @typedef {Object} FlattenOptions
- * @property {string[]} [fields] - Array of field names to include. Defaults to ['topic', 'data', 'id']
+ * @property {string[]} [fields] - Array of field names to include. Defaults to ['topic', 'data', 'id'].
+ *                                  When using custom fieldNames (e.g., { id: 'key', topic: 'name' }), this should be
+ *                                  ['name', 'data', 'key'] to match the actual field names in the data.
+ * @property {string} [idKey] - The field name to use as the node ID. Defaults to 'id'.
+ *                               When using custom fieldNames (e.g., { id: 'key' }), this should be 'key'.
+ * @property {string} [childrenKey] - The field name to use for children array. Defaults to 'children'.
+ *                                     When using custom fieldNames (e.g., { children: 'items' }), this should be 'items'.
  * @property {boolean} [includeStructure] - Whether to include _parentid and _order. Defaults to true
  */
 
 /**
  * @typedef {Object} DiffOptions
- * @property {string[]} [fields] - Array of field names to compare. Defaults to ['topic', 'data', 'id']
+ * @property {string[]} [fields] - Array of field names to compare. Defaults to ['topic', 'data', 'id'].
+ *                                  When using custom fieldNames (e.g., { id: 'key', topic: 'name' }), this should be
+ *                                  ['name', 'data', 'key'] to match the actual field names in the data.
+ *                                  Note: When using jm.history.diff(), this is automatically handled based
+ *                                  on the configured fieldNames, so you don't need to specify it manually.
+ * @property {string} [idKey] - The field name to use as the node ID. Defaults to 'id'.
+ *                               When using custom fieldNames (e.g., { id: 'key' }), this should be 'key'.
+ *                               Note: When using jm.history.diff(), this is automatically handled.
+ * @property {string} [childrenKey] - The field name to use for children array. Defaults to 'children'.
+ *                                     When using custom fieldNames (e.g., { children: 'items' }), this should be 'items'.
+ *                                     Note: When using jm.history.diff(), this is automatically handled.
  * @property {boolean} [includeStructure] - Whether to include _parentid and _order in comparison. Defaults to true
  * @property {number} [maxSize] - Maximum number of diff results. Defaults to 5000
  * @property {boolean} [categorize] - Whether to categorize updates into moved/modified/movedAndModified. Defaults to false
@@ -103,41 +119,65 @@ function getRootData(tree) {
 
 /**
  * Flatten a tree into a Map of nodes keyed by id.
+ *
+ * Note: When using custom fieldNames, make sure to pass the correct field names in opts.fields.
+ * For example, if you configured fieldNames: { topic: 'name' }, you should pass fields: ['name', 'data', 'id'].
+ *
  * @param {NodeTreeFormat|NodeTreeData} tree - The tree to flatten
  * @param {FlattenOptions} [opts] - Flatten options
  * @returns {Map<string, FlatNode>} Map of node id -> flattened node object
+ *
  * @example
+ * // With default fieldNames
  * const tree = { data: { id: 'root', topic: 'Root', children: [...] } };
  * const flatMap = flatten(tree);
  * const rootNode = flatMap.get('root'); // { id: 'root', topic: 'Root', data: {...}, _parentid: null, _order: 0 }
+ *
+ * @example
+ * // With custom fieldNames: { topic: 'name' }
+ * const tree = { data: { id: 'root', name: 'Root', children: [...] } };
+ * const flatMap = flatten(tree, { fields: ['name', 'data', 'id'] });
+ * const rootNode = flatMap.get('root'); // { id: 'root', name: 'Root', data: {...}, _parentid: null, _order: 0 }
  */
 export function flatten(tree, opts) {
     const root = getRootData(tree);
     // Default fields: ['topic', 'data', 'id'] when not specified
     const fields = opts && Array.isArray(opts.fields) ? opts.fields : ['topic', 'data', 'id'];
+    const idKey = opts && opts.idKey ? opts.idKey : 'id';
+    const childrenKey = opts && opts.childrenKey ? opts.childrenKey : 'children';
     const includeStructure = !opts || opts.includeStructure !== false;
     /** @type {Map<string, any>} */
     const map = new Map();
 
     function pick(node) {
-        const out = { id: node.id };
+        const out = {};
+        // Always include the id field (using custom key name if provided)
+        if (idKey in node) {
+            out[idKey] = node[idKey];
+        }
+        // Include other specified fields
         for (const k of fields) {
-            if (k in node) out[k] = node[k];
+            if (k in node && k !== idKey) {
+                // Avoid duplicating id field
+                out[k] = node[k];
+            }
         }
         return out;
     }
 
     function walk(n, parentId, index) {
         const item = pick(n);
+        const nodeId = n[idKey]; // Use custom idKey to get node ID
         if (includeStructure) {
             item._parentid = parentId || null;
             item._order = typeof index === 'number' ? index : 0;
         }
-        map.set(n.id, item);
-        if (n.children && Array.isArray(n.children)) n.children.forEach((c, i) => walk(c, n.id, i));
+        map.set(nodeId, item);
+        const children = n[childrenKey]; // Use custom childrenKey to get children array
+        if (children && Array.isArray(children)) children.forEach((c, i) => walk(c, nodeId, i));
     }
 
-    if (root && root.id) walk(root, null, 0);
+    if (root && root[idKey]) walk(root, null, 0);
     return map;
 }
 
@@ -258,13 +298,19 @@ function categorizeUpdates(updates) {
 }
 
 /**
- * Compute diff between two snapshots
+ * Compute diff between two snapshots.
+ *
+ * Note: When using custom fieldNames, make sure to pass the correct field names in opts.fields.
+ * For example, if you configured fieldNames: { topic: 'name' }, you should pass fields: ['name', 'data', 'id'].
+ * When using jm.history.diff(), this is automatically handled for you.
+ *
  * @param {NodeTreeFormat|NodeTreeData} a - First snapshot (before)
  * @param {NodeTreeFormat|NodeTreeData} b - Second snapshot (after)
  * @param {DiffOptions} [opts] - Diff options
  * @returns {DiffResult} Diff result with created, updated, deleted nodes, and optionally categorized updates
+ *
  * @example
- * // Basic usage
+ * // Basic usage with default fieldNames
  * const result = diff(snapshot1, snapshot2);
  * console.log(result.created); // Newly created nodes
  * console.log(result.updated); // Updated nodes with changes
@@ -278,16 +324,27 @@ function categorizeUpdates(updates) {
  * console.log(result.movedAndModified); // Nodes that were both moved and modified
  *
  * @example
- * // Custom fields
- * const result = diff(snapshot1, snapshot2, { fields: ['id', 'topic'] });
+ * // With custom fieldNames: { topic: 'name' }
+ * const result = diff(snapshot1, snapshot2, { fields: ['name', 'data', 'id'] });
+ * // Now the diff will correctly detect changes in the 'name' field
+ *
+ * @example
+ * // Using jm.history.diff() (recommended - automatically handles fieldNames)
+ * const before = jm.get_data('node_tree');
+ * // ... make changes ...
+ * const after = jm.get_data('node_tree');
+ * const result = jm.history.diff(before, after);
+ * // fieldNames are automatically applied, no need to specify fields manually
  */
 export function diff(a, b, opts) {
     const fields = opts && opts.fields;
+    const idKey = opts && opts.idKey;
+    const childrenKey = opts && opts.childrenKey;
     const includeStructure = !opts || opts.includeStructure !== false;
     const maxSize = opts && typeof opts.maxSize === 'number' ? opts.maxSize : 5000;
     const categorize = opts && opts.categorize === true;
-    const A = flatten(a, { fields, includeStructure });
-    const B = flatten(b, { fields, includeStructure });
+    const A = flatten(a, { fields, idKey, childrenKey, includeStructure });
+    const B = flatten(b, { fields, idKey, childrenKey, includeStructure });
     /** @type {any[]} */ const created = [];
     /** @type {{id:string,before:any,after:any,changes:{key:string,before:any,after:any}[]}[]} */ const updated =
         [];
