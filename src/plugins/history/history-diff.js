@@ -155,9 +155,27 @@ export function flatten(tree, opts) {
         if (idKey in node) {
             out[idKey] = node[idKey];
         }
+
+        // Collect data from non-standard fields
+        const standardFields = new Set([idKey, childrenKey, 'direction', 'expanded']);
+        const dataFields = {};
+        let hasDataFields = false;
+
         // Include other specified fields
         for (const k of fields) {
-            if (k in node && k !== idKey) {
+            if (k === 'data') {
+                // Special handling for 'data' field
+                // Collect all non-standard fields into data object
+                for (const nodeKey in node) {
+                    if (!standardFields.has(nodeKey) && !fields.includes(nodeKey)) {
+                        dataFields[nodeKey] = node[nodeKey];
+                        hasDataFields = true;
+                    }
+                }
+                if (hasDataFields) {
+                    out.data = dataFields;
+                }
+            } else if (k in node && k !== idKey) {
                 // Avoid duplicating id field
                 out[k] = node[k];
             }
