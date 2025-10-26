@@ -542,8 +542,27 @@ export default class jsMind {
     /**
      * Add multiple nodes to the mind map with optimized performance.
      * Supports standard jsMind formats: node_tree, node_array, and freemind with nested children structure.
+     *
+     * **Field Names Support**: This method now supports custom field names configured via `options.fieldNames`.
+     * You can use your own property names (e.g., 'name' instead of 'topic', 'key' instead of 'id').
+     *
+     * @example
+     * // Using standard field names
+     * jm.add_nodes('parent_id', [
+     *     { id: 'node1', topic: 'Node 1', children: [...] }
+     * ]);
+     *
+     * @example
+     * // Using custom field names (requires fieldNames configuration)
+     * var jm = new jsMind({
+     *     fieldNames: { id: 'key', topic: 'name', children: 'items' }
+     * });
+     * jm.add_nodes('parent_id', [
+     *     { key: 'node1', name: 'Node 1', items: [...] }
+     * ]);
+     *
      * @param {string | import('./jsmind.node.js').Node} parent_node - Parent node for all new nodes
-     * @param {Array<{id?: string, topic?: string, data?: Record<string, any>, direction?: ('left'|'center'|'right'|'-1'|'0'|'1'|number), children?: Array, [key: string]: any}>} nodes_data - Array of node data objects with same format as add_node
+     * @param {Array<{id?: string, topic?: string, data?: Record<string, any>, direction?: ('left'|'center'|'right'|'-1'|'0'|'1'|number), children?: Array, [key: string]: any}>} nodes_data - Array of node data objects. Field names can be customized via options.fieldNames.
      * @returns {Array<import('./jsmind.node.js').Node|null>} Array of created nodes (flattened from all levels)
      */
     add_nodes(parent_node, nodes_data) {
@@ -593,32 +612,41 @@ export default class jsMind {
 
     /**
      * Recursively add nodes using existing format processors.
+     * Supports custom field names via options.fieldNames configuration.
      * @private
      * @param {import('./jsmind.node.js').Node} parent_node
-     * @param {object} node_data
+     * @param {object} node_data - Node data object with standard or custom field names
      * @returns {Array<import('./jsmind.node.js').Node|null>}
      */
     _add_nodes_recursive(parent_node, node_data) {
         var created_nodes = [];
 
-        if (!node_data.id || !node_data.topic) {
+        // Get field names from options (support custom field names)
+        var fn = this.options.fieldNames || {};
+        var idKey = fn.id || 'id';
+        var topicKey = fn.topic || 'topic';
+        var childrenKey = fn.children || 'children';
+
+        // Validate required fields using custom field names
+        if (!node_data[idKey] || !node_data[topicKey]) {
             logger.warn('invalid node data:', node_data);
             return [];
         }
 
-        // Create the node
+        // Create the node using custom field names
         var new_node = this._add_node_data(
             parent_node,
-            node_data.id,
-            node_data.topic,
+            node_data[idKey],
+            node_data[topicKey],
             node_data.data || {},
             node_data.direction
         );
 
         if (new_node) {
             created_nodes.push(new_node);
-            if (Array.isArray(node_data.children)) {
-                const sub_nodes = node_data.children
+            // Process children using custom field name
+            if (Array.isArray(node_data[childrenKey])) {
+                const sub_nodes = node_data[childrenKey]
                     .map(child => this._add_nodes_recursive(new_node, child))
                     .flat();
                 created_nodes = created_nodes.concat(sub_nodes);
@@ -630,6 +658,7 @@ export default class jsMind {
 
     /**
      * Count expected nodes recursively.
+     * Supports custom field names via options.fieldNames configuration.
      * @private
      * @param {Array} nodes_data
      * @returns {number}
@@ -638,9 +667,15 @@ export default class jsMind {
         if (!Array.isArray(nodes_data)) {
             return 0;
         }
+
+        // Get field names from options (support custom field names)
+        var fn = this.options.fieldNames || {};
+        var childrenKey = fn.children || 'children';
+
         return nodes_data.reduce((count, node_data) => {
             count++; // Count current node
-            count += this._count_expected_nodes(node_data && node_data.children);
+            // Use custom children field name
+            count += this._count_expected_nodes(node_data && node_data[childrenKey]);
             return count;
         }, 0);
     }
