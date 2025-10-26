@@ -442,10 +442,90 @@ describe('data mutation', () => {
         expect(jsmind.get_node('node1')).toBeNull();
     });
 
-    test('update node', () => {
+    test('update node - topic only (string parameter)', () => {
         const jsmind = mock_jsmind(create_fake_mind());
+        const node = jsmind.get_node('node1');
+
         jsmind.update_node('node1', 'node1 new topic');
-        expect(jsmind.get_node('node1').topic).toBe('node1 new topic');
+
+        expect(node.topic).toBe('node1 new topic');
+        expect(jsmind.view.update_node).toHaveBeenCalledWith(node);
+        expect(jsmind.layout.layout).toHaveBeenCalled();
+        expect(jsmind.view.show).toHaveBeenCalledWith(false);
+    });
+
+    test('update node - topic only (object parameter)', () => {
+        const jsmind = mock_jsmind(create_fake_mind());
+        const node = jsmind.get_node('node1');
+
+        jsmind.update_node('node1', { topic: 'Updated Topic' });
+
+        expect(node.topic).toBe('Updated Topic');
+        expect(jsmind.view.update_node).toHaveBeenCalledWith(node);
+        expect(jsmind.layout.layout).toHaveBeenCalled();
+    });
+
+    test('update node - data only (object parameter)', () => {
+        const jsmind = mock_jsmind(create_fake_mind());
+        const node = jsmind.get_node('node1');
+        const originalTopic = node.topic;
+
+        jsmind.update_node('node1', { data: { color: 'green', status: 'active' } });
+
+        expect(node.topic).toBe(originalTopic); // Topic unchanged
+        expect(node.data.color).toBe('green');
+        expect(node.data.status).toBe('active');
+        expect(jsmind.view.update_node).toHaveBeenCalledWith(node);
+        expect(jsmind.layout.layout).toHaveBeenCalled();
+    });
+
+    test('update node - topic and data (object parameter)', () => {
+        const jsmind = mock_jsmind(create_fake_mind());
+        const node = jsmind.get_node('node1');
+
+        jsmind.update_node('node1', {
+            topic: 'Updated Topic',
+            data: { color: 'red', priority: 'high' },
+        });
+
+        expect(node.topic).toBe('Updated Topic');
+        expect(node.data.color).toBe('red');
+        expect(node.data.priority).toBe('high');
+        expect(jsmind.view.update_node).toHaveBeenCalledWith(node);
+        expect(jsmind.layout.layout).toHaveBeenCalled();
+    });
+
+    test('update node - merge data with existing data', () => {
+        const jsmind = mock_jsmind(create_fake_mind());
+        const node = jsmind.get_node('node1');
+
+        // Set initial data
+        node.data.existingKey = 'existingValue';
+        node.data.color = 'red';
+
+        // Update with new data
+        jsmind.update_node('node1', {
+            topic: 'Same Topic',
+            data: { color: 'blue', newKey: 'newValue' },
+        });
+
+        // Should merge, not replace
+        expect(node.data.existingKey).toBe('existingValue');
+        expect(node.data.color).toBe('blue'); // Updated
+        expect(node.data.newKey).toBe('newValue'); // Added
+    });
+
+    test('update node - no changes', () => {
+        const jsmind = mock_jsmind(create_fake_mind());
+        const node = jsmind.get_node('node1');
+        const originalTopic = node.topic;
+
+        jsmind.update_node('node1', originalTopic);
+
+        expect(node.topic).toBe(originalTopic);
+        expect(jsmind.view.update_node).toHaveBeenCalledWith(node);
+        // Should not call layout when nothing changed
+        expect(jsmind.layout.layout).not.toHaveBeenCalled();
     });
 
     test('move node', () => {

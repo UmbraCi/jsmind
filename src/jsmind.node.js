@@ -125,4 +125,43 @@ export class Node {
     static is_node(n) {
         return !!n && n instanceof Node;
     }
+
+    /**
+     * Convert node to plain object with custom field names.
+     * @param {Record<string,string>=} fieldNames - Field names mapping
+     * @param {boolean=} includeChildren - Whether to include children nodes (default: false)
+     * @returns {Record<string, any>} Plain object representation of node
+     */
+    toObject(fieldNames, includeChildren = false) {
+        var fn = fieldNames || {};
+        var idKey = fn.id || 'id';
+        var topicKey = fn.topic || 'topic';
+        var childrenKey = fn.children || 'children';
+        var directionKey = fn.direction || 'direction';
+        var expandedKey = fn.expanded || 'expanded';
+
+        var obj = {};
+        obj[idKey] = this.id;
+        obj[topicKey] = this.topic;
+        obj[expandedKey] = this.expanded;
+
+        // Add direction for nodes under root
+        if (!!this.parent && this.parent.isroot) {
+            obj[directionKey] = this.direction === -1 ? 'left' : 'right';
+        }
+
+        // Add custom data properties
+        if (this.data != null) {
+            for (var k in this.data) {
+                obj[k] = this.data[k];
+            }
+        }
+
+        // Add children if requested
+        if (includeChildren && this.children.length > 0) {
+            obj[childrenKey] = this.children.map(child => child.toObject(fieldNames, true));
+        }
+
+        return obj;
+    }
 }

@@ -540,29 +540,25 @@ export default class jsMind {
     }
 
     /**
-     * Add multiple nodes to the mind map with optimized performance.
-     * Supports standard jsMind formats: node_tree, node_array, and freemind with nested children structure.
+     * Add multiple nodes in batch.
      *
-     * **Field Names Support**: This method now supports custom field names configured via `options.fieldNames`.
-     * You can use your own property names (e.g., 'name' instead of 'topic', 'key' instead of 'id').
+     * This method provides atomic batch node creation with automatic rollback on failure.
+     * All nodes are created in a single operation, and if any node fails to create,
+     * all previously created nodes in this batch will be automatically removed.
+     *
+     * **Note**: This is a batch operation API that uses standard field names only.
+     * For data import with custom fieldNames, use `show()` instead.
      *
      * @example
      * // Using standard field names
      * jm.add_nodes('parent_id', [
-     *     { id: 'node1', topic: 'Node 1', children: [...] }
-     * ]);
-     *
-     * @example
-     * // Using custom field names (requires fieldNames configuration)
-     * var jm = new jsMind({
-     *     fieldNames: { id: 'key', topic: 'name', children: 'items' }
-     * });
-     * jm.add_nodes('parent_id', [
-     *     { key: 'node1', name: 'Node 1', items: [...] }
+     *     { id: 'node1', topic: 'Node 1', data: { color: 'red' }, children: [
+     *         { id: 'node1-1', topic: 'Child 1' }
+     *     ]}
      * ]);
      *
      * @param {string | import('./jsmind.node.js').Node} parent_node - Parent node for all new nodes
-     * @param {Array<{id?: string, topic?: string, data?: Record<string, any>, direction?: ('left'|'center'|'right'|'-1'|'0'|'1'|number), children?: Array, [key: string]: any}>} nodes_data - Array of node data objects. Field names can be customized via options.fieldNames.
+     * @param {Array<{id: string, topic: string, data?: Record<string, any>, direction?: ('left'|'center'|'right'|'-1'|'0'|'1'|number), children?: Array}>} nodes_data - Array of node data objects with standard field names (id, topic, children, data, direction)
      * @returns {Array<import('./jsmind.node.js').Node|null>} Array of created nodes (flattened from all levels)
      */
     add_nodes(parent_node, nodes_data) {
@@ -611,42 +607,37 @@ export default class jsMind {
     }
 
     /**
-     * Recursively add nodes using existing format processors.
-     * Supports custom field names via options.fieldNames configuration.
+     * Recursively add nodes using standard field names.
+     * This is a batch operation API that uses standard field names only.
+     * For data import with custom fieldNames, use `show()` instead.
      * @private
      * @param {import('./jsmind.node.js').Node} parent_node
-     * @param {object} node_data - Node data object with standard or custom field names
+     * @param {object} node_data - Node data object with standard field names (id, topic, children, data, direction)
      * @returns {Array<import('./jsmind.node.js').Node|null>}
      */
     _add_nodes_recursive(parent_node, node_data) {
         var created_nodes = [];
 
-        // Get field names from options (support custom field names)
-        var fn = this.options.fieldNames || {};
-        var idKey = fn.id || 'id';
-        var topicKey = fn.topic || 'topic';
-        var childrenKey = fn.children || 'children';
-
-        // Validate required fields using custom field names
-        if (!node_data[idKey] || !node_data[topicKey]) {
+        // Validate required fields (using standard field names only)
+        if (!node_data.id || !node_data.topic) {
             logger.warn('invalid node data:', node_data);
             return [];
         }
 
-        // Create the node using custom field names
+        // Create the node using standard field names
         var new_node = this._add_node_data(
             parent_node,
-            node_data[idKey],
-            node_data[topicKey],
+            node_data.id,
+            node_data.topic,
             node_data.data || {},
             node_data.direction
         );
 
         if (new_node) {
             created_nodes.push(new_node);
-            // Process children using custom field name
-            if (Array.isArray(node_data[childrenKey])) {
-                const sub_nodes = node_data[childrenKey]
+            // Process children using standard field name
+            if (Array.isArray(node_data.children)) {
+                const sub_nodes = node_data.children
                     .map(child => this._add_nodes_recursive(new_node, child))
                     .flat();
                 created_nodes = created_nodes.concat(sub_nodes);
@@ -806,30 +797,62 @@ export default class jsMind {
         }
     }
     /**
-     * Update the topic (text content) of a node.
+     * Update the topic (text content) and/or data of a node.
      * @param {string} node_id
-     * @param {string} topic
+     * @param {string|{topic?:string, data?:Record<string,any>}} topic_or_options - Topic string or options object
      */
-    update_node(node_id, topic) {
+    update_node(node_id, topic_or_options) {
         if (this.get_editable()) {
-            if (_util.text.is_empty(topic)) {
-                logger.warn('fail, topic can not be empty');
-                return;
-            }
             var node = this.get_node(node_id);
             if (!!node) {
-                if (node.topic === topic) {
+                var topic = null;
+                var data = null;
+
+                // Parse parameters
+                if (typeof topic_or_options === 'string') {
+                    topic = topic_or_options;
+                } else if (typeof topic_or_options === 'object' && topic_or_options !== null) {
+                    topic = topic_or_options.topic;
+                    data = topic_or_options.data;
+                }
+
+                var topicChanged = false;
+                var dataChanged = false;
+
+                // Update topic if provided
+                if (topic !== undefined && topic !== null) {
+                    if (_util.text.is_empty(topic)) {
+                        logger.warn('fail, topic can not be empty');
+                        return;
+                    }
+                    if (node.topic !== topic) {
+                        node.topic = topic;
+                        topicChanged = true;
+                    }
+                }
+
+                // Merge data with existing data
+                if (data && typeof data === 'object') {
+                    for (var key in data) {
+                        if (data.hasOwnProperty(key)) {
+                            node.data[key] = data[key];
+                            dataChanged = true;
+                        }
+                    }
+                }
+
+                if (!topicChanged && !dataChanged) {
                     logger.info('nothing changed');
                     this.view.update_node(node);
                     return;
                 }
-                node.topic = topic;
+
                 this.view.update_node(node);
                 this.layout.layout();
                 this.view.show(false);
                 this.invoke_event_handle(EventType.edit, {
                     evt: 'update_node',
-                    data: [node_id, topic],
+                    data: [node_id, topic, data],
                     node: node_id,
                 });
             }
@@ -886,7 +909,14 @@ export default class jsMind {
         this.view.select_node(node);
         this.invoke_event_handle(EventType.select, { evt: 'select_node', data: [], node: node.id });
     }
-    /** @returns {import('./jsmind.node.js').Node|null} */
+    /**
+     * Get the currently selected node.
+     *
+     * This is a query API that returns the internal Node instance.
+     * For data export with custom fieldNames, use `get_data()` instead.
+     *
+     * @returns {import('./jsmind.node.js').Node|null} Node instance or null
+     */
     get_selected_node() {
         if (!!this.mind) {
             return this.mind.selected;
