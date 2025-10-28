@@ -5,25 +5,27 @@
 import { flatten, diff } from '../../../../src/plugins/history/history-diff.js';
 
 describe('history-diff', () => {
-    // Test fixtures
+    // Test fixtures - using real node_tree format (data fields are flattened to top level)
     const simpleTree = {
         meta: { name: 'test', author: 'test', version: '1.0' },
         format: 'node_tree',
         data: {
             id: 'root',
             topic: 'Root',
-            data: { note: 'root note' },
+            expanded: true,
+            note: 'root note', // data.note flattened to top level
             children: [
                 {
                     id: 'node1',
                     topic: 'Node 1',
-                    data: { note: 'note 1' },
+                    expanded: true,
+                    note: 'note 1', // data.note flattened to top level
                     children: [
-                        { id: 'node1-1', topic: 'Node 1-1', data: {} },
-                        { id: 'node1-2', topic: 'Node 1-2', data: {} },
+                        { id: 'node1-1', topic: 'Node 1-1', expanded: true },
+                        { id: 'node1-2', topic: 'Node 1-2', expanded: true },
                     ],
                 },
-                { id: 'node2', topic: 'Node 2', data: {} },
+                { id: 'node2', topic: 'Node 2', expanded: true },
             ],
         },
     };
@@ -34,19 +36,21 @@ describe('history-diff', () => {
         data: {
             id: 'root',
             topic: 'Root Modified',
-            data: { note: 'root note modified' },
+            expanded: true,
+            note: 'root note modified', // data.note flattened to top level
             children: [
                 {
                     id: 'node1',
                     topic: 'Node 1 Modified',
-                    data: { note: 'note 1 modified' },
+                    expanded: true,
+                    note: 'note 1 modified', // data.note flattened to top level
                     children: [
-                        { id: 'node1-1', topic: 'Node 1-1', data: {} },
-                        { id: 'node1-2', topic: 'Node 1-2 Modified', data: {} },
+                        { id: 'node1-1', topic: 'Node 1-1', expanded: true },
+                        { id: 'node1-2', topic: 'Node 1-2 Modified', expanded: true },
                     ],
                 },
-                { id: 'node2', topic: 'Node 2', data: {} },
-                { id: 'node3', topic: 'Node 3', data: {} }, // New node
+                { id: 'node2', topic: 'Node 2', expanded: true },
+                { id: 'node3', topic: 'Node 3', expanded: true }, // New node
             ],
         },
     };
@@ -57,23 +61,25 @@ describe('history-diff', () => {
         data: {
             id: 'root',
             topic: 'Root',
-            data: { note: 'root note' },
+            expanded: true,
+            note: 'root note', // data.note flattened to top level
             children: [
                 {
                     id: 'node1',
                     topic: 'Node 1',
-                    data: { note: 'note 1' },
+                    expanded: true,
+                    note: 'note 1', // data.note flattened to top level
                     children: [
-                        { id: 'node1-2', topic: 'Node 1-2', data: {} }, // Moved from position 1 to 0
-                        { id: 'node1-1', topic: 'Node 1-1', data: {} },
+                        { id: 'node1-2', topic: 'Node 1-2', expanded: true }, // Moved from position 1 to 0
+                        { id: 'node1-1', topic: 'Node 1-1', expanded: true },
                     ],
                 },
                 {
                     id: 'node2',
                     topic: 'Node 2',
-                    data: {},
+                    expanded: true,
                     children: [
-                        { id: 'node1-1-moved', topic: 'Moved Node', data: {} }, // Moved from node1 to node2
+                        { id: 'node1-1-moved', topic: 'Moved Node', expanded: true }, // Moved from node1 to node2
                     ],
                 },
             ],
@@ -92,6 +98,7 @@ describe('history-diff', () => {
             expect(rootNode).toHaveProperty('id');
             expect(rootNode).toHaveProperty('topic');
             expect(rootNode).toHaveProperty('data');
+            expect(rootNode.data).toEqual({ note: 'root note' }); // data field collects non-standard fields
             expect(rootNode).toHaveProperty('parentid');
             expect(rootNode).toHaveProperty('index');
         });
@@ -355,18 +362,21 @@ describe('history-diff', () => {
                 data: {
                     id: 'root',
                     topic: 'Root',
-                    data: {
-                        nested: { deep: { value: 123 } },
-                        array: [1, 2, 3],
-                        null: null,
-                        boolean: true,
-                    },
+                    expanded: true,
+                    // In real node_tree format, data fields are flattened to top level
+                    nested: { deep: { value: 123 } },
+                    array: [1, 2, 3],
+                    null: null,
+                    boolean: true,
                 },
             };
             const flatMap = flatten(complexTree);
             const rootNode = flatMap.get('root');
+            // The flatten function should collect these non-standard fields into data object
             expect(rootNode.data.nested.deep.value).toBe(123);
             expect(rootNode.data.array).toEqual([1, 2, 3]);
+            expect(rootNode.data.null).toBeNull();
+            expect(rootNode.data.boolean).toBe(true);
         });
     });
 

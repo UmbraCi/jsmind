@@ -156,9 +156,37 @@ export function flatten(tree, opts) {
             out[idKey] = node[idKey];
         }
 
+        // Define standard fields that should not be collected into 'data'
+        const standardFields = new Set([
+            idKey,
+            childrenKey,
+            'direction',
+            'expanded',
+            'parentid',
+            'index',
+            'isroot',
+        ]);
+
+        // Check if 'data' field is requested
+        const includeData = fields.includes('data');
+
         // Include other specified fields
         for (const k of fields) {
-            if (k in node && k !== idKey) {
+            if (k === 'data') {
+                // Special handling for 'data' field:
+                // Collect all non-standard fields into a data object
+                const dataObj = {};
+                let hasData = false;
+                for (const nodeKey in node) {
+                    if (!standardFields.has(nodeKey) && !fields.includes(nodeKey)) {
+                        dataObj[nodeKey] = node[nodeKey];
+                        hasData = true;
+                    }
+                }
+                if (hasData) {
+                    out.data = dataObj;
+                }
+            } else if (k in node && k !== idKey) {
                 // Avoid duplicating id field
                 out[k] = node[k];
             }
