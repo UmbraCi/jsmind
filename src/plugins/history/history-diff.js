@@ -15,8 +15,8 @@ import { deepEqual } from 'fast-equals';
  * @property {string} id - Node ID
  * @property {string} [topic] - Node topic/title
  * @property {Record<string, any>} [data] - Node data
- * @property {string|null} [_parentid] - Parent node ID (structure field)
- * @property {number} [_order] - Node order in parent's children (structure field)
+ * @property {string|null} [parentid] - Parent node ID (structure field)
+ * @property {number} [index] - Node order in parent's children (structure field)
  */
 
 /**
@@ -89,7 +89,7 @@ import { deepEqual } from 'fast-equals';
  *                               When using custom fieldNames (e.g., { id: 'key' }), this should be 'key'.
  * @property {string} [childrenKey] - The field name to use for children array. Defaults to 'children'.
  *                                     When using custom fieldNames (e.g., { children: 'items' }), this should be 'items'.
- * @property {boolean} [includeStructure] - Whether to include _parentid and _order. Defaults to true
+ * @property {boolean} [includeStructure] - Whether to include parentid and index. Defaults to true
  */
 
 /**
@@ -105,7 +105,7 @@ import { deepEqual } from 'fast-equals';
  * @property {string} [childrenKey] - The field name to use for children array. Defaults to 'children'.
  *                                     When using custom fieldNames (e.g., { children: 'items' }), this should be 'items'.
  *                                     Note: When using jm.history.diff(), this is automatically handled.
- * @property {boolean} [includeStructure] - Whether to include _parentid and _order in comparison. Defaults to true
+ * @property {boolean} [includeStructure] - Whether to include parentid and index in comparison. Defaults to true
  * @property {number} [maxSize] - Maximum number of diff results. Defaults to 5000
  * @property {boolean} [categorize] - Whether to categorize updates into moved/modified/movedAndModified. Defaults to false
  */
@@ -131,13 +131,13 @@ function getRootData(tree) {
  * // With default fieldNames
  * const tree = { data: { id: 'root', topic: 'Root', children: [...] } };
  * const flatMap = flatten(tree);
- * const rootNode = flatMap.get('root'); // { id: 'root', topic: 'Root', data: {...}, _parentid: null, _order: 0 }
+ * const rootNode = flatMap.get('root'); // { id: 'root', topic: 'Root', data: {...}, parentid: null, index: 0 }
  *
  * @example
  * // With custom fieldNames: { topic: 'name' }
  * const tree = { data: { id: 'root', name: 'Root', children: [...] } };
  * const flatMap = flatten(tree, { fields: ['name', 'data', 'id'] });
- * const rootNode = flatMap.get('root'); // { id: 'root', name: 'Root', data: {...}, _parentid: null, _order: 0 }
+ * const rootNode = flatMap.get('root'); // { id: 'root', name: 'Root', data: {...}, parentid: null, index: 0 }
  */
 export function flatten(tree, opts) {
     const root = getRootData(tree);
@@ -156,26 +156,9 @@ export function flatten(tree, opts) {
             out[idKey] = node[idKey];
         }
 
-        // Collect data from non-standard fields
-        const standardFields = new Set([idKey, childrenKey, 'direction', 'expanded']);
-        const dataFields = {};
-        let hasDataFields = false;
-
         // Include other specified fields
         for (const k of fields) {
-            if (k === 'data') {
-                // Special handling for 'data' field
-                // Collect all non-standard fields into data object
-                for (const nodeKey in node) {
-                    if (!standardFields.has(nodeKey) && !fields.includes(nodeKey)) {
-                        dataFields[nodeKey] = node[nodeKey];
-                        hasDataFields = true;
-                    }
-                }
-                if (hasDataFields) {
-                    out.data = dataFields;
-                }
-            } else if (k in node && k !== idKey) {
+            if (k in node && k !== idKey) {
                 // Avoid duplicating id field
                 out[k] = node[k];
             }
@@ -187,8 +170,8 @@ export function flatten(tree, opts) {
         const item = pick(n);
         const nodeId = n[idKey]; // Use custom idKey to get node ID
         if (includeStructure) {
-            item._parentid = parentId || null;
-            item._order = typeof index === 'number' ? index : 0;
+            item.parentid = parentId || null;
+            item.index = typeof index === 'number' ? index : 0;
         }
         map.set(nodeId, item);
         const children = n[childrenKey]; // Use custom childrenKey to get children array
@@ -253,12 +236,12 @@ function detectMove(changes) {
     let parentChanged = false;
     let orderChanged = false;
 
-    // Check if _parentid or _order are in the changes array
+    // Check if parentid or index are in the changes array
     for (const change of changes) {
-        if (change.key === '_parentid') {
+        if (change.key === 'parentid') {
             parentChanged = true;
         }
-        if (change.key === '_order') {
+        if (change.key === 'index') {
             orderChanged = true;
         }
     }
@@ -290,14 +273,14 @@ function categorizeUpdates(updates) {
             const moveInfo = {
                 parentChanged: moveDetection.parentChanged,
                 orderChanged: moveDetection.orderChanged,
-                fromParent: before._parentid,
-                toParent: after._parentid,
-                fromOrder: before._order,
-                toOrder: after._order,
+                fromParent: before.parentid,
+                toParent: after.parentid,
+                fromOrder: before.index,
+                toOrder: after.index,
             };
 
-            // Filter out structure-only changes (_parentid, _order)
-            const contentChanges = changes.filter(c => c.key !== '_parentid' && c.key !== '_order');
+            // Filter out structure-only changes (parentid, index)
+            const contentChanges = changes.filter(c => c.key !== 'parentid' && c.key !== 'index');
 
             if (contentChanges.length > 0) {
                 // Both moved and modified

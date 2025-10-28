@@ -61,7 +61,7 @@ The `history-diff.js` module provides a powerful diff algorithm for comparing mi
 ### Key Features
 
 1. **Default Field Comparison**: By default, only compares `['topic', 'data', 'id']` fields
-2. **Structure Tracking**: Optionally includes `_parentid` and `_order` for movement detection
+2. **Structure Tracking**: Optionally includes `parentid` and `index` for movement detection
 3. **Custom Fields**: Configure which fields to compare
 4. **Movement Detection**: Identifies when nodes are moved to different parents
 5. **Change Categorization**: Separates moved, modified, and moved+modified nodes
@@ -76,7 +76,7 @@ Flattens a tree structure into a Map for efficient comparison.
 - `tree`: NodeTreeFormat or NodeTreeData
 - `options`:
   - `fields`: Array of field names to extract (default: `['topic', 'data', 'id']`)
-  - `includeStructure`: Include `_parentid` and `_order` (default: `true`)
+  - `includeStructure`: Include `parentid` and `index` (default: `true`)
 
 **Returns:** `Map<string, FlatNode>`
 
@@ -150,7 +150,7 @@ The diff algorithm detects the following types of changes:
 
 When `categorize=true`, updated nodes are further categorized:
 
-1. **Moved**: Only `_parentid` or `_order` changed
+1. **Moved**: Only `parentid` or `index` changed
 2. **Modified**: Only content fields changed (topic, data, etc.)
 3. **MovedAndModified**: Both structure and content changed
 

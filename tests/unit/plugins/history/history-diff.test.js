@@ -92,8 +92,8 @@ describe('history-diff', () => {
             expect(rootNode).toHaveProperty('id');
             expect(rootNode).toHaveProperty('topic');
             expect(rootNode).toHaveProperty('data');
-            expect(rootNode).toHaveProperty('_parentid');
-            expect(rootNode).toHaveProperty('_order');
+            expect(rootNode).toHaveProperty('parentid');
+            expect(rootNode).toHaveProperty('index');
         });
 
         it('should respect custom fields option', () => {
@@ -107,15 +107,15 @@ describe('history-diff', () => {
         it('should include structure fields when includeStructure is true', () => {
             const result = flatten(simpleTree, { includeStructure: true });
             const node1 = result.get('node1');
-            expect(node1).toHaveProperty('_parentid', 'root');
-            expect(node1).toHaveProperty('_order');
+            expect(node1).toHaveProperty('parentid', 'root');
+            expect(node1).toHaveProperty('index');
         });
 
         it('should exclude structure fields when includeStructure is false', () => {
             const result = flatten(simpleTree, { includeStructure: false });
             const node1 = result.get('node1');
-            expect(node1).not.toHaveProperty('_parentid');
-            expect(node1).not.toHaveProperty('_order');
+            expect(node1).not.toHaveProperty('parentid');
+            expect(node1).not.toHaveProperty('index');
         });
 
         it('should flatten all nodes in the tree', () => {
@@ -328,7 +328,7 @@ describe('history-diff', () => {
             };
             const flatMap = flatten(deepTree);
             expect(flatMap.size).toBe(4); // root + 3 levels
-            expect(flatMap.get('level3')._parentid).toBe('level2');
+            expect(flatMap.get('level3').parentid).toBe('level2');
         });
 
         it('should handle nodes with missing optional fields', () => {
