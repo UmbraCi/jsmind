@@ -116,9 +116,35 @@
                         engine: 'svg',
                         expander_style: 'char',
                     },
+                    // 配置插件选项
+                    plugins: ['draggable-node'],
+                    plugin: {
+                        'draggable_node': {
+                            validate_drag: function(draggedNode, targetNode) {
+                                // 示例：禁止将节点拖拽到根节点
+                                if (targetNode.isroot) {
+                                    alert('❌ 不能将节点拖拽到根节点！');
+                                    return false;
+                                }
+
+                                // 示例：禁止将标记为不可拖拽的节点拖拽
+                                if (draggedNode.data && draggedNode.data.draggable === false) {
+                                    alert('❌ 此节点不能拖拽！');
+                                    return false;
+                                }
+
+                                return true; // 允许拖拽
+                            }
+                        }
+                    }
                 };
                 _jm = new jsMind(options);
                 _jm.show(mind);
+
+                console.log('%c拖拽验证功能示例', 'color: #4caf50; font-size: 14px; font-weight: bold;');
+                console.log('尝试拖拽节点，体验验证功能：');
+                console.log('- 将子节点拖拽到根节点 → 会被阻止');
+                console.log('- 拖拽"技术实现"节点 → 会被阻止（已标记为不可拖拽）');
 
                 // 监听历史栈状态变化事件，自动更新按钮状态
                 _jm.add_event_listener(function(type, data) {

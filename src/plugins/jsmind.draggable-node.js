@@ -34,6 +34,7 @@ const clear_selection =
  * @property {number} [scrolling_trigger_width]
  * @property {number} [scrolling_step_length]
  * @property {string} [shadow_node_class_name]
+ * @property {(draggedNode:import('../jsmind.node.js').Node, targetNode:import('../jsmind.node.js').Node|null)=>boolean} [validate_drag]
  */
 const DEFAULT_OPTIONS = {
     line_width: 5,
@@ -669,6 +670,18 @@ export class DraggableNode {
     move_node(src_node, target_node, target_direct) {
         var shadow_h = this.shadow.offsetTop;
         if (!!target_node && !!src_node && !jsMind.node.inherited(src_node, target_node)) {
+            // Call validate_drag function if provided, to validate the drag operation
+            if (this.options.validate_drag && typeof this.options.validate_drag === 'function') {
+                const isValid = this.options.validate_drag(src_node, target_node);
+                if (!isValid) {
+                    // Drag operation is not allowed, cleanup and return
+                    this.active_node = null;
+                    this.target_node = null;
+                    this.target_direct = null;
+                    return;
+                }
+            }
+
             // lookup before_node
             var sibling_nodes = target_node.children;
             var sc = sibling_nodes.length;
