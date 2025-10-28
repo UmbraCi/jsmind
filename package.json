@@ -31,7 +31,7 @@
         "./history": {
             "import": "./es/jsmind.history.js",
             "require": "./lib/jsmind.history.js",
-            "types": "./types/generated/plugins/jsmind.history.d.ts"
+            "types": "./types/generated/plugins/history/jsmind.history.d.ts"
         },
         "./style/jsmind.css": "./style/jsmind.css"
     },
