@@ -99,7 +99,11 @@
         "testEnvironment": "jsdom"
     },
     "sideEffects": [
-        "./es6/*"
+        "./es6/*",
+        "./es/*.js",
+        "./lib/*.js",
+        "./dist/*.js",
+        "./style/*.css"
     ],
     "dependencies": {
         "fast-equals": "^5.3.2"
