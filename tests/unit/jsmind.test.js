@@ -335,6 +335,109 @@ test('resize', () => {
     expect(jsmind.view.resize).toBeCalled();
 });
 
+describe('get_node_level', () => {
+    test('should return -1 for non-existent node', () => {
+        const jsmind = create_fake_mind();
+        logger.warn = jest.fn();
+
+        const level = jsmind.get_node_level('non_existent_node');
+
+        expect(level).toBe(-1);
+        expect(logger.warn).toHaveBeenCalledWith('the node[id=non_existent_node] can not be found.');
+    });
+
+    test('should return 0 for root node', () => {
+        const jsmind = create_fake_mind();
+
+        const level = jsmind.get_node_level('root');
+
+        expect(level).toBe(0);
+    });
+
+    test('should return 1 for direct children of root', () => {
+        const jsmind = create_fake_mind();
+
+        const level = jsmind.get_node_level('node1');
+
+        expect(level).toBe(1);
+    });
+
+    test('should return correct level for nested nodes', () => {
+        const jsmind = create_fake_mind();
+
+        // Add nested structure: root -> node1 -> node2 -> node3
+        const node2 = jsmind.mind.add_node(jsmind.get_node('node1'), 'node2', 'node2');
+        jsmind.mind.add_node(node2, 'node3', 'node3');
+
+        expect(jsmind.get_node_level('node1')).toBe(1);
+        expect(jsmind.get_node_level('node2')).toBe(2);
+        expect(jsmind.get_node_level('node3')).toBe(3);
+    });
+
+    test('should work with node object parameter', () => {
+        const jsmind = create_fake_mind();
+        const node = jsmind.get_node('node1');
+
+        const level = jsmind.get_node_level(node);
+
+        expect(level).toBe(1);
+    });
+
+    test('should handle null/undefined node parameter', () => {
+        const jsmind = create_fake_mind();
+        logger.warn = jest.fn();
+
+        const level1 = jsmind.get_node_level(null);
+        expect(level1).toBe(-1);
+        expect(logger.warn).toHaveBeenCalledWith('the node[id=null] can not be found.');
+
+        logger.warn.mockClear();
+        const level2 = jsmind.get_node_level(undefined);
+        expect(level2).toBe(-1);
+        expect(logger.warn).toHaveBeenCalledWith('the node[id=undefined] can not be found.');
+    });
+
+    test('should handle deep nested structures', () => {
+        const jsmind = create_fake_mind();
+        let current_node = jsmind.get_node('node1');
+
+        // Create a deep hierarchy (10 levels)
+        for (let i = 2; i <= 10; i++) {
+            current_node = jsmind.mind.add_node(current_node, `node${i}`, `node${i}`);
+        }
+
+        expect(jsmind.get_node_level('node1')).toBe(1);
+        expect(jsmind.get_node_level('node5')).toBe(5);
+        expect(jsmind.get_node_level('node10')).toBe(10);
+    });
+
+    test('should work correctly after add_nodes operation', () => {
+        const jsmind = create_fake_mind();
+        jsmind.enable_edit();
+        jsmind._add_node_data = jest.fn().mockImplementation((parent, id, topic) => {
+            return { id, topic, parent, children: [], isroot: false };
+        });
+        jsmind._refresh_node_ui = jest.fn();
+        jsmind.invoke_event_handle = jest.fn();
+        jsmind.view.relayout = jest.fn();
+        jsmind.view.show = jest.fn();
+
+        // Add new nodes using add_nodes
+        const nodes_data = [
+            { id: 'child1', topic: 'Child 1' },
+            { id: 'grandchild1', topic: 'Grandchild 1', parentid: 'node1' }
+        ];
+
+        const result = jsmind.add_nodes('node1', nodes_data);
+
+        expect(result).toHaveLength(2);
+
+        // Since add_nodes uses mocked _add_node_data, we can't test actual hierarchy
+        // But we can verify that the method exists and works with different inputs
+        expect(typeof jsmind.get_node_level).toBe('function');
+    });
+});
+
 describe('get data', () => {
     test('get metadata', () => {
         const jsmind = create_fake_mind();

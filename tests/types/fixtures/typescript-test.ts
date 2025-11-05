@@ -220,6 +220,16 @@ if (root) {
             jm.set_node_font_style(selectedNode.id, 16, 'bold', 'italic');
         }
     }
+
+    // Test get_node_level method with different parameter types
+    const rootLevel: number = jm.get_node_level(root.id); // Using string ID
+    const rootLevel2: number = jm.get_node_level(root); // Using Node object
+    const newLevel: number = jm.get_node_level('new_node'); // Using string ID
+    const invalidLevel: number = jm.get_node_level('invalid_id'); // Invalid ID should return -1
+
+    // Type checking for get_node_level return value
+    const levelResult: number = jm.get_node_level(root);
+    console.log(`Root level: ${levelResult}, New node level: ${newLevel}, Invalid level: ${invalidLevel}`);
 }
 
 // Edit operations

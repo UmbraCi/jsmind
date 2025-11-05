@@ -472,6 +472,35 @@ export default class jsMind {
         return this.mind.get_node(node);
     }
     /**
+     * Get the level/depth of a node in the mind map.
+     * @param {string | import('./jsmind.node.js').Node} node - Node id or Node instance
+     * @returns {number} Node level (root node is 0, its children are 1, etc.)
+     */
+    get_node_level(node) {
+        var the_node = this.get_node(node);
+        if (!the_node) {
+            logger.warn('the node[id=' + node + '] can not be found.');
+            return -1;
+        }
+
+        // Root node is at level 0
+        if (the_node.isroot) {
+            return 0;
+        }
+
+        var level = 0;
+        var current = the_node;
+
+        // Traverse up to root node, counting levels
+        while (current.parent && !current.parent.isroot) {
+            level++;
+            current = current.parent;
+        }
+
+        // Add 1 for children of root node
+        return level + 1;
+    }
+    /**
      * Add node data to the mind map without triggering UI refresh.
      * @private
      * @param {import('./jsmind.node.js').Node} parent_node
