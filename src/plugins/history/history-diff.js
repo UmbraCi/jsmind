@@ -108,6 +108,7 @@ import { deepEqual } from 'fast-equals';
  * @property {boolean} [includeStructure] - Whether to include parentid and index in comparison. Defaults to true
  * @property {number} [maxSize] - Maximum number of diff results. Defaults to 5000
  * @property {boolean} [categorize] - Whether to categorize updates into moved/modified/movedAndModified. Defaults to false
+ * @property {boolean} [ignoreDeletionShift] - Whether to ignore index changes caused by preceding node deletions. When true, nodes that only change index due to deletion of previous siblings won't be marked as moved. Defaults to false
  */
 
 function isFormat(obj) {
@@ -279,6 +280,56 @@ function detectMove(changes) {
 }
 
 /**
+ * Check if index change is caused by deletion of preceding siblings
+ * @param {Map<string, any>} beforeMap - Flattened map before changes
+ * @param {Map<string, any>} afterMap - Flattened map after changes
+ * @param {string} nodeId - Node ID to check
+ * @param {string} parentId - Parent node ID
+ * @param {number} fromIndex - Original index
+ * @param {number} toIndex - New index
+ * @returns {boolean} - True if index change is caused by preceding sibling deletions
+ */
+function isIndexChangeCausedByDeletion(beforeMap, afterMap, nodeId, parentId, fromIndex, toIndex) {
+    if (fromIndex <= toIndex) return false; // Only consider index decrease
+
+    // Count children before and after for the same parent
+    const beforeChildren = [];
+    const afterChildren = [];
+
+    for (const [id, node] of beforeMap) {
+        if (node.parentid === parentId) {
+            beforeChildren.push({ id, index: node.index });
+        }
+    }
+
+    for (const [id, node] of afterMap) {
+        if (node.parentid === parentId) {
+            afterChildren.push({ id, index: node.index });
+        }
+    }
+
+    // Sort by index
+    beforeChildren.sort((a, b) => a.index - b.index);
+    afterChildren.sort((a, b) => a.index - b.index);
+
+    // Count how many preceding siblings were deleted
+    let deletedPrecedingCount = 0;
+    for (const beforeChild of beforeChildren) {
+        if (beforeChild.index < fromIndex) {
+            // Check if this child still exists in after map
+            const stillExists = afterChildren.some(afterChild => afterChild.id === beforeChild.id);
+            if (!stillExists) {
+                deletedPrecedingCount++;
+            }
+        }
+    }
+
+    // If the index shift equals the number of deleted preceding siblings,
+    // then the change is caused by deletion
+    return (fromIndex - toIndex) === deletedPrecedingCount;
+}
+
+/**
  * Categorize updated nodes into moved, modified, or movedAndModified
  * @param {{ id: string, before: any, after: any, changes: { key: string, before: any, after: any }[] }[]} updates
  * @returns {{
@@ -364,14 +415,23 @@ function categorizeUpdates(updates) {
  * const after = jm.get_data('node_tree');
  * const result = jm.history.diff(before, after);
  * // fieldNames are automatically applied, no need to specify fields manually
+ *
+ * @example
+ * // Ignore index changes caused by preceding node deletions
+ * const result = jm.history.diff(before, after, { ignoreDeletionShift: true });
+ * // Now nodes that only change index due to deletion of previous siblings won't be marked as moved
  */
-export function diff(a, b, opts) {
-    const fields = opts && opts.fields;
-    const idKey = opts && opts.idKey;
-    const childrenKey = opts && opts.childrenKey;
-    const includeStructure = !opts || opts.includeStructure !== false;
-    const maxSize = opts && typeof opts.maxSize === 'number' ? opts.maxSize : 5000;
-    const categorize = opts && opts.categorize === true;
+export function diff(a, b, opts = {}) {
+    const {
+        fields,
+        idKey,
+        childrenKey,
+        includeStructure = true,
+        maxSize = 5000,
+        categorize = false,
+        ignoreDeletionShift = false
+    } = opts;
+
     const A = flatten(a, { fields, idKey, childrenKey, includeStructure });
     const B = flatten(b, { fields, idKey, childrenKey, includeStructure });
     /** @type {any[]} */ const created = [];
@@ -388,6 +448,34 @@ export function diff(a, b, opts) {
         const nodeA = A.get(id);
         if (!shallowEqual(nodeA, nodeB)) {
             const changes = computeChanges(nodeA, nodeB);
+
+            // Apply ignoreDeletionShift filter
+            if (ignoreDeletionShift && !changes.some(c => c.key === 'parentid')) {
+                const hasIndexChange = changes.some(c => c.key === 'index');
+
+                if (hasIndexChange) {
+                    // Check if this index change is caused by deletion of preceding siblings
+                    const indexChange = changes.find(c => c.key === 'index');
+                    const causedByDeletion = isIndexChangeCausedByDeletion(
+                        A, B, id, nodeA.parentid, indexChange.before, indexChange.after
+                    );
+
+                    if (causedByDeletion) {
+                        // Remove index change from the changes array
+                        const filteredChanges = changes.filter(c => c.key !== 'index');
+
+                        // If there are no other changes, skip this update entirely
+                        if (filteredChanges.length === 0) {
+                            continue;
+                        }
+
+                        // Otherwise, update with the filtered changes
+                        changes.length = 0;
+                        changes.push(...filteredChanges);
+                    }
+                }
+            }
+
             updated.push({ id, before: nodeA, after: nodeB, changes });
         }
     }

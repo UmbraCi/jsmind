@@ -21,6 +21,9 @@
         <button onclick="replay();">replay</button>
         <button onclick="switch_mindmap();" style="background-color: #4CAF50; color: white; font-weight: bold;">切换脑图</button>
         <div id="jsmind_container"></div>
+        <div style="margin: 8px 0; color: #666; font-size: 14px;">
+            💡 提示：选中任意节点后按 <kbd>Tab</kbd> 键可以快速添加子节点并进入编辑模式
+        </div>
         <div id="history_controls" style="margin: 8px 0;">
             <button id="btn_undo" onclick="h_undo()">Undo</button>
             <button id="btn_redo" onclick="h_redo()">Redo</button>
@@ -28,6 +31,7 @@
             <button onclick="h_snapA()">Set A</button>
             <button onclick="h_snapB()">Set B</button>
             <button onclick="h_diff()">Diff A→B</button>
+            <button onclick="h_diff_ignore_shift()" style="background-color: #FF9800; color: white;">Diff (Ignore Shift)</button>
             <button onclick="h_info()">Stack Info</button>
             <button onclick="test_fieldnames_diff_step1()" style="background-color: #4CAF50; color: white;">Test FieldNames Diff (Step 1)</button>
             <button onclick="test_fieldnames_diff_step2()" style="background-color: #2196F3; color: white;">Test FieldNames Diff (Step 2)</button>
@@ -70,7 +74,7 @@
                         {
                             id: 'sub21',
                             parentid: 'sub2',
-                            name: '快捷键\nEsc: 取消编辑\nCtrl+Enter: 完成编辑',
+                            name: '快捷键\nEsc: 取消编辑\nCtrl+Enter: 完成编辑\nTab: 添加子节点',
                         },
                         {
                             id: 'sub22',
@@ -107,9 +111,30 @@
                             test: function (j, e) {
                                 console.log(j);
                             },
+                            add_child: function (j, e) {
+                                // 获取当前选中的节点
+                                var selected_node = j.get_selected_node();
+                                if (!selected_node) {
+                                    // 如果没有选中节点，选中根节点
+                                    selected_node = j.get_root();
+                                }
+
+                                if (selected_node) {
+                                    // 生成唯一的节点ID
+                                    var node_id = 'node_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                                    var topic = '新节点';
+
+                                    // 添加子节点
+                                    j.add_node(selected_node, node_id, topic);
+                                    // 选中新创建的节点并开始编辑
+                                    j.select_node(node_id);
+                                    j.begin_edit(node_id);
+                                }
+                            },
                         },
                         mapping: {
-                            test: 89,
+                            test: 89,        // Y key
+                            add_child: 9,    // Tab key
                         },
                     },
                     view: {
@@ -253,6 +278,25 @@
                 msg += '\n详细信息请查看控制台';
                 alert(msg);
             }
+            function h_diff_ignore_shift() {
+                if (!snapA || !snapB) { alert('请先点击 Set A / Set B'); return; }
+
+                // Test with ignoreDeletionShift: false (default)
+                console.log('=== Default Behavior (ignoreDeletionShift: false) ===');
+                var d1 = _jm.history.diff(snapA, snapB, { categorize: true });
+                console.log('Diff with default behavior:', d1);
+
+                // Test with ignoreDeletionShift: true
+                console.log('=== With ignoreDeletionShift: true ===');
+                var d2 = _jm.history.diff(snapA, snapB, { categorize: true, ignoreDeletionShift: true });
+                console.log('Diff with ignoreDeletionShift:', d2);
+
+                // Compare results
+                var msg = '默认行为: moved=' + (d1.moved ? d1.moved.length : 0) + ', modified=' + (d1.modified ? d1.modified.length : 0) + '\n';
+                msg += 'Ignore Shift: moved=' + (d2.moved ? d2.moved.length : 0) + ', modified=' + (d2.modified ? d2.modified.length : 0) + '\n';
+                msg += '\n如果删除了节点，ignoreDeletionShift 会减少因删除导致的误判\n详细信息请查看控制台';
+                alert(msg);
+            }
             function h_info() {
                 if (_jm && _jm.history) {
                     var m = _jm.history.getStack();
@@ -384,7 +428,7 @@
                         {
                             id: 'sub21',
                             parentid: 'sub2',
-                            name: '快捷键\nEsc: 取消编辑\nCtrl+Enter: 完成编辑',
+                            name: '快捷键\nEsc: 取消编辑\nCtrl+Enter: 完成编辑\nTab: 添加子节点',
                         },
                         {
                             id: 'sub22',
