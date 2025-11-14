@@ -892,7 +892,10 @@ export default class jsMind {
 
                 // Validate and apply ID change
                 if (topic_or_updates.id !== undefined) {
-                    if (typeof topic_or_updates.id !== 'string' || topic_or_updates.id.trim() === '') {
+                    if (
+                        typeof topic_or_updates.id !== 'string' ||
+                        topic_or_updates.id.trim() === ''
+                    ) {
                         logger.error('fail, new node id must be a non-empty string');
                         return;
                     }
@@ -906,7 +909,9 @@ export default class jsMind {
                         }
 
                         if (topic_or_updates.id in this.mind.nodes) {
-                            logger.error('fail, new id "' + topic_or_updates.id + '" already exists');
+                            logger.error(
+                                'fail, new id "' + topic_or_updates.id + '" already exists'
+                            );
                             return;
                         }
 
@@ -932,8 +937,11 @@ export default class jsMind {
                 }
 
                 // Apply other Node properties
-                ['index', 'expanded', 'direction'].forEach(function(prop) {
-                    if (topic_or_updates[prop] !== undefined && node[prop] !== topic_or_updates[prop]) {
+                ['index', 'expanded', 'direction'].forEach(function (prop) {
+                    if (
+                        topic_or_updates[prop] !== undefined &&
+                        node[prop] !== topic_or_updates[prop]
+                    ) {
                         node[prop] = topic_or_updates[prop];
                         hasChanges = true;
                     }

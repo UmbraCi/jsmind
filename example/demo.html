@@ -19,23 +19,40 @@
         <input type="file" onchange="load_file(this);" />
         <button onclick="save_nodetree();">nodetree</button>
         <button onclick="replay();">replay</button>
-        <button onclick="switch_mindmap();" style="background-color: #4CAF50; color: white; font-weight: bold;">切换脑图</button>
+        <button
+            onclick="switch_mindmap();"
+            style="background-color: #4caf50; color: white; font-weight: bold"
+        >
+            切换脑图
+        </button>
         <div id="jsmind_container"></div>
-        <div style="margin: 8px 0; color: #666; font-size: 14px;">
+        <div style="margin: 8px 0; color: #666; font-size: 14px">
             💡 提示：选中任意节点后按 <kbd>Tab</kbd> 键可以快速添加子节点并进入编辑模式
         </div>
-        <div id="history_controls" style="margin: 8px 0;">
+        <div id="history_controls" style="margin: 8px 0">
             <button id="btn_undo" onclick="h_undo()">Undo</button>
             <button id="btn_redo" onclick="h_redo()">Redo</button>
             <button onclick="h_add()">Add Snapshot</button>
             <button onclick="h_snapA()">Set A</button>
             <button onclick="h_snapB()">Set B</button>
             <button onclick="h_diff()">Diff A→B</button>
-            <button onclick="h_diff_ignore_shift()" style="background-color: #FF9800; color: white;">Diff (Ignore Shift)</button>
+            <button onclick="h_diff_ignore_shift()" style="background-color: #ff9800; color: white">
+                Diff (Ignore Shift)
+            </button>
             <button onclick="h_info()">Stack Info</button>
-            <button onclick="test_fieldnames_diff_step1()" style="background-color: #4CAF50; color: white;">Test FieldNames Diff (Step 1)</button>
-            <button onclick="test_fieldnames_diff_step2()" style="background-color: #2196F3; color: white;">Test FieldNames Diff (Step 2)</button>
-            <span id="history_status" style="margin-left: 10px; color: #666;"></span>
+            <button
+                onclick="test_fieldnames_diff_step1()"
+                style="background-color: #4caf50; color: white"
+            >
+                Test FieldNames Diff (Step 1)
+            </button>
+            <button
+                onclick="test_fieldnames_diff_step2()"
+                style="background-color: #2196f3; color: white"
+            >
+                Test FieldNames Diff (Step 2)
+            </button>
+            <span id="history_status" style="margin-left: 10px; color: #666"></span>
         </div>
 
         <script type="text/javascript" src="../dist/jsmind.js"></script>
@@ -86,7 +103,7 @@
                             id: 'sub3',
                             parentid: 'root',
                             name: '技术实现\n基于 contenteditable\n支持 HTML 内容',
-                            draggable: false
+                            draggable: false,
                         },
                     ],
                 };
@@ -121,7 +138,11 @@
 
                                 if (selected_node) {
                                     // 生成唯一的节点ID
-                                    var node_id = 'node_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                                    var node_id =
+                                        'node_' +
+                                        Date.now() +
+                                        '_' +
+                                        Math.random().toString(36).substr(2, 9);
                                     var topic = '新节点';
 
                                     // 添加子节点
@@ -133,8 +154,8 @@
                             },
                         },
                         mapping: {
-                            test: 89,        // Y key
-                            add_child: 9,    // Tab key
+                            test: 89, // Y key
+                            add_child: 9, // Tab key
                         },
                     },
                     view: {
@@ -144,8 +165,8 @@
                     // 配置插件选项
                     plugins: ['draggable-node'],
                     plugin: {
-                        'draggable_node': {
-                            validate_drag: function(draggedNode, targetNode) {
+                        draggable_node: {
+                            validate_drag: function (draggedNode, targetNode) {
                                 // 示例：禁止将节点拖拽到根节点
                                 if (targetNode.isroot) {
                                     alert('❌ 不能将节点拖拽到根节点！');
@@ -159,20 +180,23 @@
                                 }
 
                                 return true; // 允许拖拽
-                            }
-                        }
-                    }
+                            },
+                        },
+                    },
                 };
                 _jm = new jsMind(options);
                 _jm.show(mind);
 
-                console.log('%c拖拽验证功能示例', 'color: #4caf50; font-size: 14px; font-weight: bold;');
+                console.log(
+                    '%c拖拽验证功能示例',
+                    'color: #4caf50; font-size: 14px; font-weight: bold;'
+                );
                 console.log('尝试拖拽节点，体验验证功能：');
                 console.log('- 将子节点拖拽到根节点 → 会被阻止');
                 console.log('- 拖拽"技术实现"节点 → 会被阻止（已标记为不可拖拽）');
 
                 // 监听历史栈状态变化事件，自动更新按钮状态
-                _jm.add_event_listener(function(type, data) {
+                _jm.add_event_listener(function (type, data) {
                     if (type === jsMind.event_type.history_change) {
                         // 更新 Undo/Redo 按钮状态
                         var btnUndo = document.getElementById('btn_undo');
@@ -182,7 +206,8 @@
                         if (btnUndo) btnUndo.disabled = !data.canBack;
                         if (btnRedo) btnRedo.disabled = !data.canForward;
                         if (statusSpan) {
-                            statusSpan.textContent = 'History: ' + (data.index + 1) + ' / ' + data.length;
+                            statusSpan.textContent =
+                                'History: ' + (data.index + 1) + ' / ' + data.length;
                         }
 
                         console.log('[history_change]', data);
@@ -222,7 +247,8 @@
             }
 
             // ----- History demo helpers (top-level) -----
-            var snapA = null, snapB = null;
+            var snapA = null,
+                snapB = null;
             function h_undo() {
                 if (_jm && _jm.history) {
                     var ok = _jm.history.back();
@@ -238,7 +264,11 @@
             function h_add() {
                 if (_jm && _jm.history) {
                     _jm.history.add('manual-click');
-                    console.log('add snapshot, index/len', _jm.history.index(), _jm.history.length());
+                    console.log(
+                        'add snapshot, index/len',
+                        _jm.history.index(),
+                        _jm.history.length()
+                    );
                 }
             }
             function h_snapA() {
@@ -254,7 +284,10 @@
                 }
             }
             function h_diff() {
-                if (!snapA || !snapB) { alert('请先点击 Set A / Set B'); return; }
+                if (!snapA || !snapB) {
+                    alert('请先点击 Set A / Set B');
+                    return;
+                }
 
                 // Test 1: Auto-detect fieldNames (recommended)
                 console.log('=== Test 1: Auto-detect fieldNames ===');
@@ -272,14 +305,38 @@
                 console.log('Diff A→B (wrong):', d3);
 
                 // Display results
-                var msg = 'Test 1 (auto): created=' + d1.created.length + ', updated=' + d1.updated.length + ', deleted=' + d1.deleted.length + '\n';
-                msg += 'Test 2 (manual): created=' + d2.created.length + ', updated=' + d2.updated.length + ', deleted=' + d2.deleted.length + '\n';
-                msg += 'Test 3 (wrong): created=' + d3.created.length + ', updated=' + d3.updated.length + ', deleted=' + d3.deleted.length + '\n';
+                var msg =
+                    'Test 1 (auto): created=' +
+                    d1.created.length +
+                    ', updated=' +
+                    d1.updated.length +
+                    ', deleted=' +
+                    d1.deleted.length +
+                    '\n';
+                msg +=
+                    'Test 2 (manual): created=' +
+                    d2.created.length +
+                    ', updated=' +
+                    d2.updated.length +
+                    ', deleted=' +
+                    d2.deleted.length +
+                    '\n';
+                msg +=
+                    'Test 3 (wrong): created=' +
+                    d3.created.length +
+                    ', updated=' +
+                    d3.updated.length +
+                    ', deleted=' +
+                    d3.deleted.length +
+                    '\n';
                 msg += '\n详细信息请查看控制台';
                 alert(msg);
             }
             function h_diff_ignore_shift() {
-                if (!snapA || !snapB) { alert('请先点击 Set A / Set B'); return; }
+                if (!snapA || !snapB) {
+                    alert('请先点击 Set A / Set B');
+                    return;
+                }
 
                 // Test with ignoreDeletionShift: false (default)
                 console.log('=== Default Behavior (ignoreDeletionShift: false) ===');
@@ -288,13 +345,27 @@
 
                 // Test with ignoreDeletionShift: true
                 console.log('=== With ignoreDeletionShift: true ===');
-                var d2 = _jm.history.diff(snapA, snapB, { categorize: true, ignoreDeletionShift: true });
+                var d2 = _jm.history.diff(snapA, snapB, {
+                    categorize: true,
+                    ignoreDeletionShift: true,
+                });
                 console.log('Diff with ignoreDeletionShift:', d2);
 
                 // Compare results
-                var msg = '默认行为: moved=' + (d1.moved ? d1.moved.length : 0) + ', modified=' + (d1.modified ? d1.modified.length : 0) + '\n';
-                msg += 'Ignore Shift: moved=' + (d2.moved ? d2.moved.length : 0) + ', modified=' + (d2.modified ? d2.modified.length : 0) + '\n';
-                msg += '\n如果删除了节点，ignoreDeletionShift 会减少因删除导致的误判\n详细信息请查看控制台';
+                var msg =
+                    '默认行为: moved=' +
+                    (d1.moved ? d1.moved.length : 0) +
+                    ', modified=' +
+                    (d1.modified ? d1.modified.length : 0) +
+                    '\n';
+                msg +=
+                    'Ignore Shift: moved=' +
+                    (d2.moved ? d2.moved.length : 0) +
+                    ', modified=' +
+                    (d2.modified ? d2.modified.length : 0) +
+                    '\n';
+                msg +=
+                    '\n如果删除了节点，ignoreDeletionShift 会减少因删除导致的误判\n详细信息请查看控制台';
                 alert(msg);
             }
             function h_info() {
@@ -319,7 +390,9 @@
                 console.log('Configured fieldNames:', _jm.options.fieldNames);
                 console.log('Before snapshot taken:', _test_snapshot_before);
 
-                alert('✅ Step 1 完成!\n\n快照已保存。\n\n请手动修改任意节点的文本,然后点击 "Test FieldNames Diff (Step 2)" 按钮。');
+                alert(
+                    '✅ Step 1 完成!\n\n快照已保存。\n\n请手动修改任意节点的文本,然后点击 "Test FieldNames Diff (Step 2)" 按钮。'
+                );
             }
 
             // Step 2: Take snapshot after modification and compare
@@ -363,7 +436,7 @@
                                 changeDetails.push({
                                     nodeId: update.id,
                                     before: change.before,
-                                    after: change.after
+                                    after: change.after,
                                 });
                             }
                         }
@@ -375,7 +448,10 @@
                 msg += 'Configured fieldNames.topic: "name"\n';
                 msg += 'Updates detected: ' + (diff.updated ? diff.updated.length : 0) + '\n';
                 if (success) {
-                    msg += '✅ SUCCESS: Diff correctly detected change in "' + detectedField + '" field!\n\n';
+                    msg +=
+                        '✅ SUCCESS: Diff correctly detected change in "' +
+                        detectedField +
+                        '" field!\n\n';
                     msg += 'Changes:\n';
                     for (var k = 0; k < changeDetails.length; k++) {
                         var detail = changeDetails[k];
@@ -386,7 +462,11 @@
                 } else {
                     msg += '❌ FAILED: Diff did not detect change in "name" field\n';
                     if (diff.updated && diff.updated.length > 0) {
-                        var fields = diff.updated[0].changes.map(function(c) { return c.key; }).join(', ');
+                        var fields = diff.updated[0].changes
+                            .map(function (c) {
+                                return c.key;
+                            })
+                            .join(', ');
                         msg += 'Changes detected in fields: ' + fields;
                     } else {
                         msg += 'No changes detected. Did you modify any node?';
@@ -439,7 +519,7 @@
                             id: 'sub3',
                             parentid: 'root',
                             name: '技术实现\n基于 contenteditable\n支持 HTML 内容',
-                            draggable: false
+                            draggable: false,
                         },
                     ],
                 },
@@ -503,25 +583,47 @@
                 var nextMind = mindmaps[currentMindIndex];
 
                 console.log('切换到脑图 ' + (currentMindIndex + 1) + ':', nextMind.meta.name);
-                console.log('切换前历史栈状态:', _jm.history ? 'index=' + _jm.history.index() + ', length=' + _jm.history.length() : 'N/A');
+                console.log(
+                    '切换前历史栈状态:',
+                    _jm.history
+                        ? 'index=' + _jm.history.index() + ', length=' + _jm.history.length()
+                        : 'N/A'
+                );
 
                 // 调用 show 方法切换脑图
                 _jm.show(nextMind);
 
                 // 延迟检查历史栈状态（等待 history 插件初始化完成）
                 // 延迟时间需要大于 history 插件的 setTimeout 延迟（100ms）
-                setTimeout(function() {
-                    console.log('切换后历史栈状态:', _jm.history ? 'index=' + _jm.history.index() + ', length=' + _jm.history.length() : 'N/A');
+                setTimeout(function () {
+                    console.log(
+                        '切换后历史栈状态:',
+                        _jm.history
+                            ? 'index=' + _jm.history.index() + ', length=' + _jm.history.length()
+                            : 'N/A'
+                    );
                     var expectedState = 'History: 1 / 1';
-                    var actualState = 'History: ' + (_jm.history.index() + 1) + ' / ' + _jm.history.length();
+                    var actualState =
+                        'History: ' + (_jm.history.index() + 1) + ' / ' + _jm.history.length();
                     if (actualState === expectedState) {
-                        alert('✅ 切换成功！\n脑图: ' + nextMind.meta.name + '\n历史栈状态: ' + actualState);
+                        alert(
+                            '✅ 切换成功！\n脑图: ' +
+                                nextMind.meta.name +
+                                '\n历史栈状态: ' +
+                                actualState
+                        );
                     } else {
-                        alert('⚠️ 切换成功，但历史栈状态异常！\n脑图: ' + nextMind.meta.name + '\n期望状态: ' + expectedState + '\n实际状态: ' + actualState);
+                        alert(
+                            '⚠️ 切换成功，但历史栈状态异常！\n脑图: ' +
+                                nextMind.meta.name +
+                                '\n期望状态: ' +
+                                expectedState +
+                                '\n实际状态: ' +
+                                actualState
+                        );
                     }
                 }, 150); // 延迟 150ms，确保 history 插件的 setTimeout(100ms) 已执行
             }
-
 
             load_jsmind();
         </script>

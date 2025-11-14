@@ -343,7 +343,9 @@ describe('get_node_level', () => {
         const level = jsmind.get_node_level('non_existent_node');
 
         expect(level).toBe(-1);
-        expect(logger.warn).toHaveBeenCalledWith('the node[id=non_existent_node] can not be found.');
+        expect(logger.warn).toHaveBeenCalledWith(
+            'the node[id=non_existent_node] can not be found.'
+        );
     });
 
     test('should return 0 for root node', () => {
@@ -425,7 +427,7 @@ describe('get_node_level', () => {
         // Add new nodes using add_nodes
         const nodes_data = [
             { id: 'child1', topic: 'Child 1' },
-            { id: 'grandchild1', topic: 'Grandchild 1', parentid: 'node1' }
+            { id: 'grandchild1', topic: 'Grandchild 1', parentid: 'node1' },
         ];
 
         const result = jsmind.add_nodes('node1', nodes_data);

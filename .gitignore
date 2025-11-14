@@ -12,6 +12,10 @@ es6/*.js
 es6/*.js.map
 types/generated/
 
+# Package managers lock files
+package-lock.json
+pnpm-lock.yaml
+
 .augment/
 
 .spec-workflow

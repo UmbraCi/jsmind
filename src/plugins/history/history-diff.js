@@ -326,7 +326,7 @@ function isIndexChangeCausedByDeletion(beforeMap, afterMap, nodeId, parentId, fr
 
     // If the index shift equals the number of deleted preceding siblings,
     // then the change is caused by deletion
-    return (fromIndex - toIndex) === deletedPrecedingCount;
+    return fromIndex - toIndex === deletedPrecedingCount;
 }
 
 /**
@@ -429,7 +429,7 @@ export function diff(a, b, opts = {}) {
         includeStructure = true,
         maxSize = 5000,
         categorize = false,
-        ignoreDeletionShift = false
+        ignoreDeletionShift = false,
     } = opts;
 
     const A = flatten(a, { fields, idKey, childrenKey, includeStructure });
@@ -457,7 +457,12 @@ export function diff(a, b, opts = {}) {
                     // Check if this index change is caused by deletion of preceding siblings
                     const indexChange = changes.find(c => c.key === 'index');
                     const causedByDeletion = isIndexChangeCausedByDeletion(
-                        A, B, id, nodeA.parentid, indexChange.before, indexChange.after
+                        A,
+                        B,
+                        id,
+                        nodeA.parentid,
+                        indexChange.before,
+                        indexChange.after
                     );
 
                     if (causedByDeletion) {

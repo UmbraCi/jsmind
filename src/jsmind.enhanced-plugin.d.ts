@@ -164,4 +164,3 @@ declare module './jsmind.js' {
         export function hasEnhancedPlugin(PluginClass: typeof EnhancedPlugin): boolean;
     }
 }
-

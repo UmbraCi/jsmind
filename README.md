@@ -11,11 +11,11 @@ jsMind is mind map library built by javascript, it base on html5 canvas and svg.
 
 jsMind now supports a new enhanced plugin system with:
 
-- **Synchronous Initialization**: Plugins initialize before rendering, allowing them to affect the initial render
-- **Preload Support**: Control plugin initialization order (before or after core modules)
-- **Lifecycle Management**: Proper cleanup with `beforePluginRemove()` and `beforePluginDestroy()` hooks
-- **Dynamic Plugin Management**: Add or remove plugins at runtime
-- **Backward Compatibility**: Works alongside the existing plugin system
+-   **Synchronous Initialization**: Plugins initialize before rendering, allowing them to affect the initial render
+-   **Preload Support**: Control plugin initialization order (before or after core modules)
+-   **Lifecycle Management**: Proper cleanup with `beforePluginRemove()` and `beforePluginDestroy()` hooks
+-   **Dynamic Plugin Management**: Add or remove plugins at runtime
+-   **Backward Compatibility**: Works alongside the existing plugin system
 
 See [Enhanced Plugin System Documentation](docs/enhanced-plugin-system.md) for more information.
 
@@ -28,13 +28,13 @@ import MultilineTextV2 from './plugins/jsmind.multiline-text-v2.js';
 // Register plugin (before creating instance)
 jsMind.usePlugin(MultilineTextV2, {
     text_width: 250,
-    min_height: 40
+    min_height: 40,
 });
 
 // Create jsMind instance
 const jm = new jsMind({
     container: 'jsmind_container',
-    editable: true
+    editable: true,
 });
 
 // Show mind map with multiline text
@@ -44,10 +44,8 @@ jm.show({
     data: {
         id: 'root',
         topic: 'Root Node',
-        children: [
-            { id: 'node1', topic: 'Line 1\nLine 2\nLine 3' }
-        ]
-    }
+        children: [{ id: 'node1', topic: 'Line 1\nLine 2\nLine 3' }],
+    },
 });
 ```
 

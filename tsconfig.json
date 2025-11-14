@@ -18,7 +18,9 @@
                 "types/generated/plugins/jsmind.draggable-node.d.ts"
             ],
             "@umbraci/jsmind/screenshot": ["types/generated/plugins/jsmind.screenshot.d.ts"],
-            "@umbraci/jsmind/multiline-text": ["types/generated/plugins/jsmind.multiline-text.d.ts"],
+            "@umbraci/jsmind/multiline-text": [
+                "types/generated/plugins/jsmind.multiline-text.d.ts"
+            ],
             "@umbraci/jsmind/history": ["types/generated/plugins/history/jsmind.history.d.ts"]
         }
     },

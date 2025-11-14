@@ -4,13 +4,13 @@ The History plugin provides complete undo/redo functionality with history manage
 
 ## Features
 
-- ✅ **Undo/Redo**: Full undo/redo support with configurable history stack
-- ✅ **Snapshot Management**: Export and import mind map snapshots
-- ✅ **Diff Algorithm**: Advanced snapshot comparison with detailed change tracking
-- ✅ **Movement Detection**: Detect node movements (drag & drop scenarios)
-- ✅ **Configurable Fields**: Customize which fields to compare
-- ✅ **Performance Optimized**: Efficient diff algorithm with Map-based lookups
-- ✅ **TypeScript Support**: Complete type definitions
+-   ✅ **Undo/Redo**: Full undo/redo support with configurable history stack
+-   ✅ **Snapshot Management**: Export and import mind map snapshots
+-   ✅ **Diff Algorithm**: Advanced snapshot comparison with detailed change tracking
+-   ✅ **Movement Detection**: Detect node movements (drag & drop scenarios)
+-   ✅ **Configurable Fields**: Customize which fields to compare
+-   ✅ **Performance Optimized**: Efficient diff algorithm with Map-based lookups
+-   ✅ **TypeScript Support**: Complete type definitions
 
 ## Installation
 
@@ -33,10 +33,10 @@ const jm = new jsMind({
             options: {
                 enabled: true,
                 maxHistory: 500,
-                throttleMs: 100
-            }
-        }
-    ]
+                throttleMs: 100,
+            },
+        },
+    ],
 });
 
 // Undo/Redo
@@ -73,20 +73,22 @@ The `history-diff.js` module provides a powerful diff algorithm for comparing mi
 Flattens a tree structure into a Map for efficient comparison.
 
 **Parameters:**
-- `tree`: NodeTreeFormat or NodeTreeData
-- `options`:
-  - `fields`: Array of field names to extract (default: `['topic', 'data', 'id']`)
-  - `includeStructure`: Include `parentid` and `index` (default: `true`)
+
+-   `tree`: NodeTreeFormat or NodeTreeData
+-   `options`:
+    -   `fields`: Array of field names to extract (default: `['topic', 'data', 'id']`)
+    -   `includeStructure`: Include `parentid` and `index` (default: `true`)
 
 **Returns:** `Map<string, FlatNode>`
 
 **Example:**
+
 ```javascript
 import { flatten } from './history-diff.js';
 
 const flatMap = flatten(snapshot, {
     fields: ['id', 'topic'],
-    includeStructure: true
+    includeStructure: true,
 });
 ```
 
@@ -95,22 +97,24 @@ const flatMap = flatten(snapshot, {
 Compares two snapshots and returns detailed differences.
 
 **Parameters:**
-- `snapshotA`: First snapshot (before changes)
-- `snapshotB`: Second snapshot (after changes)
-- `options`:
-  - `fields`: Fields to compare (default: `['topic', 'data', 'id']`)
-  - `includeStructure`: Include structure fields (default: `true`)
-  - `maxSize`: Maximum result size (default: `5000`)
-  - `categorize`: Categorize updates into moved/modified/movedAndModified (default: `false`)
+
+-   `snapshotA`: First snapshot (before changes)
+-   `snapshotB`: Second snapshot (after changes)
+-   `options`:
+    -   `fields`: Fields to compare (default: `['topic', 'data', 'id']`)
+    -   `includeStructure`: Include structure fields (default: `true`)
+    -   `maxSize`: Maximum result size (default: `5000`)
+    -   `categorize`: Categorize updates into moved/modified/movedAndModified (default: `false`)
 
 **Returns:**
+
 ```typescript
 {
     created: FlatNode[],      // Newly created nodes
     updated: UpdatedNode[],   // Updated nodes with change details
     deleted: FlatNode[],      // Deleted nodes
     truncated: boolean,       // Whether results were truncated
-    
+
     // When categorize=true:
     moved?: MovedNode[],              // Only moved
     modified?: ModifiedNode[],        // Only modified
@@ -119,6 +123,7 @@ Compares two snapshots and returns detailed differences.
 ```
 
 **Example:**
+
 ```javascript
 import { diff } from './history-diff.js';
 
@@ -126,8 +131,8 @@ import { diff } from './history-diff.js';
 const result = diff(snapshot1, snapshot2);
 
 // With categorization
-const categorized = diff(snapshot1, snapshot2, { 
-    categorize: true 
+const categorized = diff(snapshot1, snapshot2, {
+    categorize: true,
 });
 
 console.log('Moved nodes:', categorized.moved);
@@ -135,8 +140,8 @@ console.log('Modified nodes:', categorized.modified);
 console.log('Moved + Modified:', categorized.movedAndModified);
 
 // Custom fields
-const custom = diff(snapshot1, snapshot2, { 
-    fields: ['id', 'topic', 'customField']
+const custom = diff(snapshot1, snapshot2, {
+    fields: ['id', 'topic', 'customField'],
 });
 ```
 
@@ -172,18 +177,18 @@ result.moved.forEach(node => {
 
 ### Performance Considerations
 
-- Uses `Map` instead of `Object` for O(1) lookups
-- Supports `maxSize` option to limit result size
-- Efficient shallow comparison before deep comparison
-- Only compares specified fields (default: topic, data, id)
+-   Uses `Map` instead of `Object` for O(1) lookups
+-   Supports `maxSize` option to limit result size
+-   Efficient shallow comparison before deep comparison
+-   Only compares specified fields (default: topic, data, id)
 
 ## Architecture
 
 ### Files
 
-- `jsmind.history.js`: Main plugin implementation with HistoryCore
-- `history-diff.js`: Standalone diff algorithm module
-- `README.md`: This documentation
+-   `jsmind.history.js`: Main plugin implementation with HistoryCore
+-   `history-diff.js`: Standalone diff algorithm module
+-   `README.md`: This documentation
 
 ### Key Components
 
@@ -227,11 +232,12 @@ npm test -- history-diff
 ```
 
 Test coverage includes:
-- Flatten function with various options
-- Diff algorithm with all change types
-- Movement detection
-- Categorization
-- Edge cases (empty trees, identical trees)
+
+-   Flatten function with various options
+-   Diff algorithm with all change types
+-   Movement detection
+-   Categorization
+-   Edge cases (empty trees, identical trees)
 
 ## TypeScript Support
 
@@ -242,11 +248,10 @@ import type { DiffResult, DiffOptions, FlatNode } from './history-diff.js';
 
 const result: DiffResult = diff(snapshot1, snapshot2, {
     fields: ['id', 'topic'],
-    categorize: true
+    categorize: true,
 });
 ```
 
 ## License
 
 BSD Licensed. See LICENSE file for details.
-

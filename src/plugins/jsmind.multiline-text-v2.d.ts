@@ -81,4 +81,3 @@ export class MultilineTextV2 extends EnhancedPlugin {
 }
 
 export default MultilineTextV2;
-
