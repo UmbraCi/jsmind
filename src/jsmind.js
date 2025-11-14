@@ -826,51 +826,120 @@ export default class jsMind {
         }
     }
     /**
-     * Update the topic (text content) and/or data of a node.
-     * @param {string} node_id
-     * @param {string|{topic?:string, data?:Record<string,any>}} topic_or_options - Topic string or options object
+     * Update node topic text or multiple node properties.
+     * @param {string} node_id - The ID of the node to update
+     * @param {string|Partial<Pick<import('./jsmind.node.js').Node, 'topic' | 'data' | 'id' | 'index' | 'expanded' | 'direction'>>} topic_or_updates - Topic string for backward compatibility, or partial Node object for comprehensive updates
      */
-    update_node(node_id, topic_or_options) {
-        if (this.get_editable()) {
-            var node = this.get_node(node_id);
-            if (!!node) {
-                var topic = null;
-                var data = null;
+    update_node(node_id, topic_or_updates) {
+        if (!this.get_editable()) {
+            logger.error('fail, this mind map is not editable');
+            return;
+        }
 
-                // Parse parameters
-                if (typeof topic_or_options === 'string') {
-                    topic = topic_or_options;
-                } else if (typeof topic_or_options === 'object' && topic_or_options !== null) {
-                    topic = topic_or_options.topic;
-                    data = topic_or_options.data;
+        var node = this.get_node(node_id);
+        if (!!node) {
+            // Handle backward compatibility: string parameter
+            if (typeof topic_or_updates === 'string') {
+                if (_util.text.is_empty(topic_or_updates)) {
+                    logger.warn('fail, topic can not be empty');
+                    return;
                 }
+                if (node.topic === topic_or_updates) {
+                    logger.info('nothing changed');
+                    this.view.update_node(node);
+                    return;
+                }
+                node.topic = topic_or_updates;
+                this.view.update_node(node);
+                this.layout.layout();
+                this.view.show(false);
+                this.invoke_event_handle(EventType.edit, {
+                    evt: 'update_node',
+                    data: [node_id, topic_or_updates],
+                    node: node_id,
+                });
+                return;
+            }
 
-                var topicChanged = false;
-                var dataChanged = false;
+            // Handle advanced updates with object parameter
+            if (typeof topic_or_updates === 'object' && topic_or_updates !== null) {
+                var originalId = node.id;
+                var hasChanges = false;
 
-                // Update topic if provided
-                if (topic !== undefined && topic !== null) {
-                    if (_util.text.is_empty(topic)) {
+                // Validate and apply topic change
+                if (topic_or_updates.topic !== undefined) {
+                    if (_util.text.is_empty(topic_or_updates.topic)) {
                         logger.warn('fail, topic can not be empty');
                         return;
                     }
-                    if (node.topic !== topic) {
-                        node.topic = topic;
-                        topicChanged = true;
+                    if (node.topic !== topic_or_updates.topic) {
+                        node.topic = topic_or_updates.topic;
+                        hasChanges = true;
                     }
                 }
 
-                // Merge data with existing data
-                if (data && typeof data === 'object') {
-                    for (var key in data) {
-                        if (data.hasOwnProperty(key)) {
-                            node.data[key] = data[key];
-                            dataChanged = true;
+                // Validate and apply data changes
+                if (topic_or_updates.data && typeof topic_or_updates.data === 'object') {
+                    for (var key in topic_or_updates.data) {
+                        if (topic_or_updates.data.hasOwnProperty(key)) {
+                            if (node.data[key] !== topic_or_updates.data[key]) {
+                                node.data[key] = topic_or_updates.data[key];
+                                hasChanges = true;
+                            }
                         }
                     }
                 }
 
-                if (!topicChanged && !dataChanged) {
+                // Validate and apply ID change
+                if (topic_or_updates.id !== undefined) {
+                    if (typeof topic_or_updates.id !== 'string' || topic_or_updates.id.trim() === '') {
+                        logger.error('fail, new node id must be a non-empty string');
+                        return;
+                    }
+
+                    // Only proceed if there's an actual ID change
+                    if (node.id !== topic_or_updates.id) {
+                        // Validation checks
+                        if (node.isroot) {
+                            logger.error('fail, cannot change root node id');
+                            return;
+                        }
+
+                        if (topic_or_updates.id in this.mind.nodes) {
+                            logger.error('fail, new id "' + topic_or_updates.id + '" already exists');
+                            return;
+                        }
+
+                        // Direct ID change implementation
+                        var oldId = node.id;
+
+                        // Remove from old mapping
+                        delete this.mind.nodes[oldId];
+
+                        // Update node ID
+                        node.id = topic_or_updates.id;
+
+                        // Add to new mapping
+                        this.mind.nodes[topic_or_updates.id] = node;
+
+                        // Update selected state if needed
+                        if (this.mind.selected && this.mind.selected.id === oldId) {
+                            this.mind.selected = node;
+                        }
+
+                        hasChanges = true;
+                    }
+                }
+
+                // Apply other Node properties
+                ['index', 'expanded', 'direction'].forEach(function(prop) {
+                    if (topic_or_updates[prop] !== undefined && node[prop] !== topic_or_updates[prop]) {
+                        node[prop] = topic_or_updates[prop];
+                        hasChanges = true;
+                    }
+                });
+
+                if (!hasChanges) {
                     logger.info('nothing changed');
                     this.view.update_node(node);
                     return;
@@ -881,12 +950,12 @@ export default class jsMind {
                 this.view.show(false);
                 this.invoke_event_handle(EventType.edit, {
                     evt: 'update_node',
-                    data: [node_id, topic, data],
-                    node: node_id,
+                    data: [originalId, topic_or_updates],
+                    node: originalId,
                 });
             }
         } else {
-            logger.error('fail, this mind map is not editable');
+            logger.error('fail, node not found');
             return;
         }
     }

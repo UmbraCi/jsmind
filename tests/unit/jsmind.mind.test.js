@@ -185,3 +185,55 @@ test('remove node', () => {
     expect(mind.get_node('3')).toBe(null);
     expect(mind.selected).toBe(null);
 });
+
+test('change node id', () => {
+    const mind = new Mind();
+    const root = mind.set_root('0', 'root');
+    const node1 = mind.add_node(root, '1', 'node1', null);
+    const node2 = mind.add_node(root, '2', 'node2', null);
+    const node3 = mind.add_node(node1, '3', 'node3', null);
+
+    // 测试正常的ID变更
+    expect(mind.change_node_id('1', '1_new')).toBe(true);
+    expect(mind.get_node('1')).toBe(null);
+    expect(mind.get_node('1_new')).toBe(node1);
+    expect(node1.id).toBe('1_new');
+
+    // 测试父节点的children数组引用
+    expect(root.children).toContain(node1);
+
+    // 测试子节点的parent引用仍然正确
+    expect(node3.parent).toBe(node1);
+
+    // 测试重复ID的情况
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    expect(mind.change_node_id('2', '1_new')).toBe(false);
+    expect(mind.get_node('2')).toBe(node2);
+    expect(mind.get_node('1_new')).toBe(node1);
+
+    // 测试不存在的节点
+    expect(mind.change_node_id('999', 'new_id')).toBe(false);
+
+    // 测试空参数
+    expect(mind.change_node_id('', 'new_id')).toBe(false);
+    expect(mind.change_node_id('2', '')).toBe(false);
+    expect(mind.change_node_id(null, 'new_id')).toBe(false);
+    expect(mind.change_node_id('2', null)).toBe(false);
+
+    // 测试相同ID
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(mind.change_node_id('2', '2')).toBe(true);
+
+    // 测试根节点ID变更（应该失败）
+    expect(mind.change_node_id('0', 'root_new')).toBe(false);
+    expect(mind.get_node('0')).toBe(root);
+    expect(mind.get_node('root_new')).toBe(null);
+
+    // 测试选中节点的ID变更
+    mind.selected = node2;
+    expect(mind.change_node_id('2', '2_new')).toBe(true);
+    expect(mind.selected).toBe(node2);
+    expect(mind.selected.id).toBe('2_new');
+    expect(mind.get_node('2')).toBe(null);
+    expect(mind.get_node('2_new')).toBe(node2);
+});
