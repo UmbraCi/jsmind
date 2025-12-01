@@ -43,6 +43,8 @@ export class ViewProvider {
         this.size = { w: 0, h: 0 };
 
         this.selected_node = null;
+        /** @type {Map<string, import('./jsmind.node.js').Node>} */
+        this.multi_selected_nodes = new Map();
         this.editing_node = null;
 
         this.graph = null;
@@ -162,6 +164,7 @@ export class ViewProvider {
     reset() {
         logger.debug('view.reset');
         this.selected_node = null;
+        this.multi_selected_nodes.clear();
         this.clear_lines();
         this.clear_nodes();
         this.reset_theme();
@@ -298,9 +301,7 @@ export class ViewProvider {
      * @param {import('./jsmind.node.js').Node} node - Node to remove
      */
     remove_node(node) {
-        if (this.selected_node != null && this.selected_node.id == node.id) {
-            this.selected_node = null;
-        }
+        this._unmark_node_selected(node);
         if (this.editing_node != null && this.editing_node.id == node.id) {
             node._data.view.element.removeChild(this.e_editor);
             this.editing_node = null;
@@ -345,20 +346,57 @@ export class ViewProvider {
      * @param {import('./jsmind.node.js').Node|null} node - Node to select
      */
     select_node(node) {
-        if (!!this.selected_node) {
-            var element = this.selected_node._data.view.element;
-            element.className = element.className.replace(/\s*selected\b/i, '');
-            this.restore_selected_node_custom_style(this.selected_node);
-        }
+        this.clear_all_selected_nodes();
         if (!!node) {
             this.selected_node = node;
-            node._data.view.element.className += ' selected';
-            this.clear_selected_node_custom_style(node);
+            this._mark_node_selected(node);
         }
     }
     /** Clear node selection. */
     select_clear() {
-        this.select_node(null);
+        this.clear_all_selected_nodes();
+    }
+    /**
+     * Append nodes to the current selection without clearing existing ones.
+     * @param {import('./jsmind.node.js').Node[]} nodes
+     * @param {import('./jsmind.node.js').Node=} focus_node
+     */
+    append_selected_nodes(nodes, focus_node) {
+        if (!nodes || !nodes.length) {
+            return;
+        }
+        for (var i = 0; i < nodes.length; i++) {
+            this._mark_node_selected(nodes[i]);
+        }
+        if (focus_node) {
+            this.selected_node = focus_node;
+        } else {
+            this.selected_node = nodes[nodes.length - 1];
+        }
+    }
+    /**
+     * Remove the provided nodes from selection state.
+     * @param {import('./jsmind.node.js').Node[]} nodes
+     */
+    remove_selected_nodes(nodes) {
+        if (!nodes || !nodes.length) {
+            return;
+        }
+        for (var i = 0; i < nodes.length; i++) {
+            this._unmark_node_selected(nodes[i]);
+        }
+    }
+    /** Clear all selections at once. */
+    clear_all_selected_nodes() {
+        if (!this.multi_selected_nodes.size) {
+            this.selected_node = null;
+            return;
+        }
+        var nodes = Array.from(this.multi_selected_nodes.values());
+        for (var i = 0; i < nodes.length; i++) {
+            this._unmark_node_selected(nodes[i]);
+        }
+        this.selected_node = null;
     }
     /**
      * Get currently editing node.
@@ -697,6 +735,46 @@ export class ViewProvider {
         var node_element = node._data.view.element;
         node_element.style.backgroundColor = '';
         node_element.style.color = '';
+    }
+    /**
+     * Mark the DOM/state for a selected node.
+     * @param {import('./jsmind.node.js').Node} node
+     * @private
+     */
+    _mark_node_selected(node) {
+        if (!node || this.multi_selected_nodes.has(node.id)) {
+            return;
+        }
+        var element = node._data.view.element;
+        if (!element) {
+            return;
+        }
+        if (!/(\s|^)selected(\s|$)/.test(element.className)) {
+            element.className += ' selected';
+        }
+        this.clear_selected_node_custom_style(node);
+        this.multi_selected_nodes.set(node.id, node);
+    }
+    /**
+     * Remove DOM/state selection for a node.
+     * @param {import('./jsmind.node.js').Node} node
+     * @private
+     */
+    _unmark_node_selected(node) {
+        if (!node) {
+            return;
+        }
+        if (this.multi_selected_nodes.has(node.id)) {
+            var element = node._data.view.element;
+            if (!!element) {
+                element.className = element.className.replace(/\s*selected\b/i, '');
+            }
+            this.restore_selected_node_custom_style(node);
+            this.multi_selected_nodes.delete(node.id);
+        }
+        if (!!this.selected_node && this.selected_node.id == node.id) {
+            this.selected_node = null;
+        }
     }
     clear_lines() {
         this.graph.clear();

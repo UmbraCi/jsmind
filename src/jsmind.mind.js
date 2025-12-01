@@ -24,6 +24,8 @@ export class Mind {
         this.root = null;
         /** @type {Node | null} */
         this.selected = null;
+        /** @type {Set<Node>} */
+        this.selected_nodes = new Set();
         /** @type {Record<string, Node>} */
         this.nodes = {};
     }
@@ -305,6 +307,7 @@ export class Mind {
         if (this.selected != null && this.selected.id == node.id) {
             this.selected = null;
         }
+        this._purge_selection(node);
         // clean all subordinate nodes
         var children = node.children;
         var ci = children.length;
@@ -333,6 +336,21 @@ export class Mind {
         node = null;
         this._update_index(node_parent);
         return true;
+    }
+
+    /**
+     * Remove a node and its subtree from the cached selection set.
+     * @param {Node} node
+     * @private
+     */
+    _purge_selection(node) {
+        if (this.selected_nodes.has(node)) {
+            this.selected_nodes.delete(node);
+        }
+        var children = node.children || [];
+        for (var i = 0; i < children.length; i++) {
+            this._purge_selection(children[i]);
+        }
     }
     /**
      * Put node into the map if id is not taken.

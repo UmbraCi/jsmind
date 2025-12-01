@@ -93,6 +93,10 @@ export default class jsMind {
         this.version = __version__;
         this.initialized = false;
         this.mind = null;
+        /** @type {'single'|'multi'|null} */
+        this._selection_mode = null;
+        /** @type {import('./jsmind.node.js').Node|null} */
+        this._last_selected_node = null;
         /** @type {Array<(type: number, data: EventData) => void>} */
         this.event_handles = [];
         this.init();
@@ -223,11 +227,26 @@ export default class jsMind {
         }
         var element = e.target || event.srcElement;
         var node_id = this.view.get_binded_nodeid(element);
+        var mode = this._get_multi_select_mode(e);
         if (!!node_id) {
             if (this.view.is_node(element)) {
-                this.select_node(node_id);
+                if (mode === 'ctrl') {
+                    // Ctrl+Click: add/remove (deselect subtree if already selected)
+                    this._toggle_node_selection(node_id);
+                } else if (mode === 'shift') {
+                    // Shift+Click: if node is already selected, deselect subtree; otherwise do range select
+                    if (this.is_node_selected(node_id)) {
+                        this._deselect_subtree(node_id);
+                    } else {
+                        this._range_select_nodes(node_id);
+                    }
+                } else {
+                // Single click: clear all and select this node
+                    this.select_node(node_id);
+                }
             }
-        } else {
+        } else if (mode === null) {
+            // Only clear selection if no modifier keys
             this.select_clear();
         }
     }
@@ -811,6 +830,10 @@ export default class jsMind {
             this.view.save_location(parent_node);
             this.view.remove_node(node);
             this.mind.remove_node(node);
+            // Clear _last_selected_node if the removed node was the last selected
+            if (this._last_selected_node && this._last_selected_node.id === node_id) {
+                this._last_selected_node = null;
+            }
             this.layout.layout();
             this.view.show(false);
             this.view.restore_location(parent_node);
@@ -1011,9 +1034,17 @@ export default class jsMind {
         if (!this.layout.is_visible(node)) {
             return;
         }
+        this._clear_selection_state();
         this.mind.selected = node;
-        this.view.select_node(node);
-        this.invoke_event_handle(EventType.select, { evt: 'select_node', data: [], node: node.id });
+        this._last_selected_node = node;
+        this._append_selection([node]);
+        this._selection_mode = 'single';
+        this.invoke_event_handle(EventType.select, {
+            evt: 'select_node',
+            data: [],
+            node: node.id,
+            nodes: [node.id],
+        });
     }
     /**
      * Get the currently selected node.
@@ -1030,12 +1061,116 @@ export default class jsMind {
             return null;
         }
     }
+    /**
+     * Get all currently selected nodes.
+     * @returns {import('./jsmind.node.js').Node[]}
+     */
+    get_selected_nodes() {
+        if (!!this.mind) {
+            return Array.from(this.mind.selected_nodes);
+        }
+        return [];
+    }
     /** clear selection */
     select_clear() {
         if (!!this.mind) {
             this.mind.selected = null;
-            this.view.select_clear();
+            this._last_selected_node = null;
+            this._clear_selection_state();
         }
+    }
+    /**
+     * Toggle multi-selection for a node (and optionally descendants).
+     * @param {string | import('./jsmind.node.js').Node} node
+     */
+    toggle_subtree_selection(node) {
+        if (!this.options.selection || !this.options.selection.enable_multi_select) {
+            this.select_node(node);
+            return;
+        }
+        if (!Node.is_node(node)) {
+            var the_node = this.get_node(node);
+            if (!the_node) {
+                logger.error('the node[id=' + node + '] can not be found.');
+                return;
+            } else {
+                this.toggle_subtree_selection(the_node);
+                return;
+            }
+        }
+        if (!this.layout.is_visible(node)) {
+            return;
+        }
+        var isSelected = this.mind.selected_nodes.has(node);
+        var shouldExpandSelection = !isSelected || this._selection_mode !== 'multi';
+        if (shouldExpandSelection) {
+            this._selection_mode = 'multi';
+            var includeDescendants = this.options.selection.include_descendants !== false;
+            var nodes_to_add = this._collect_subtree_nodes(node, {
+                includeChildren: includeDescendants,
+                respectFilter: true,
+                skipRootFilter: true,
+            });
+            if (!nodes_to_add.length) {
+                nodes_to_add = [node];
+            }
+            var added = this._append_selection(nodes_to_add, { focusNode: node });
+            var ancestorAdded =
+                node.parent && !this.mind.selected_nodes.has(node.parent)
+                    ? this._ensure_ancestor_selection([node], node, {
+                        requireAncestorChainSelected: true,
+                    })
+                    : [];
+            var totalAdded = added.concat(ancestorAdded);
+            if (totalAdded.length) {
+                this.mind.selected = node;
+                var addedIds = totalAdded.map(n => n.id);
+                this.invoke_event_handle(EventType.select, {
+                    evt: 'multi_select',
+                    data: addedIds,
+                    node: node.id,
+                    nodes: addedIds,
+                });
+            }
+        } else {
+            var nodes_to_remove = this._collect_subtree_nodes(node, {
+                includeChildren: true,
+                respectFilter: false,
+                skipRootFilter: false,
+            });
+            if (!nodes_to_remove.length) {
+                nodes_to_remove = [node];
+            }
+            var removed = this._remove_selection(nodes_to_remove);
+            if (removed.length) {
+                if (this.mind.selected && this.mind.selected.id === node.id) {
+                    this.mind.selected = null;
+                }
+                var removedIds = removed.map(n => n.id);
+                this._selection_mode = this._derive_selection_mode();
+                this.invoke_event_handle(EventType.select, {
+                    evt: 'multi_deselect',
+                    data: removedIds,
+                    node: node.id,
+                    nodes: removedIds,
+                });
+            }
+        }
+    }
+    /**
+     * Determine whether a node is currently selected.
+     * @param {string | import('./jsmind.node.js').Node} node
+     * @returns {boolean}
+     */
+    is_node_selected(node) {
+        var target = node;
+        if (!Node.is_node(node)) {
+            target = this.get_node(node);
+        }
+        if (!target || !this.mind) {
+            return false;
+        }
+        return this.mind.selected_nodes.has(target);
     }
     /** @param {string | import('./jsmind.node.js').Node} node */
     is_node_visible(node) {
@@ -1056,6 +1191,614 @@ export default class jsMind {
             return;
         }
         this.view.center_node(node);
+    }
+    /**
+     * Add nodes into the current selection set without clearing existing ones.
+     * @param {import('./jsmind.node.js').Node[]} nodes
+     * @returns {import('./jsmind.node.js').Node[]}
+     * @private
+     */
+    /**
+     * @param {import('./jsmind.node.js').Node[]} nodes
+     * @param {{focusNode?: import('./jsmind.node.js').Node}=} options
+     * @private
+     */
+    _append_selection(nodes, options) {
+        if (!nodes || !nodes.length) {
+            return [];
+        }
+        var added = [];
+        for (var i = 0; i < nodes.length; i++) {
+            var node = nodes[i];
+            if (!this.mind.selected_nodes.has(node)) {
+                this.mind.selected_nodes.add(node);
+                added.push(node);
+            }
+        }
+        if (added.length) {
+            var focusNode = options && options.focusNode ? options.focusNode : null;
+            this.view.append_selected_nodes(added, focusNode || added[added.length - 1]);
+        }
+        return added;
+    }
+    /**
+     * Remove nodes from the current selection set.
+     * @param {import('./jsmind.node.js').Node[]} nodes
+     * @returns {import('./jsmind.node.js').Node[]}
+     * @private
+     */
+    _remove_selection(nodes) {
+        if (!nodes || !nodes.length) {
+            return [];
+        }
+        var removed = [];
+        for (var i = 0; i < nodes.length; i++) {
+            var node = nodes[i];
+            if (this.mind.selected_nodes.has(node)) {
+                this.mind.selected_nodes.delete(node);
+                removed.push(node);
+            }
+        }
+        if (removed.length) {
+            this.view.remove_selected_nodes(removed);
+        }
+        return removed;
+    }
+    /**
+     * Deselect a node and all its descendants from the current selection.
+     * @param {string | import('./jsmind.node.js').Node} node
+     * @private
+     */
+    _deselect_subtree(node) {
+        var the_node = Node.is_node(node) ? node : this.get_node(node);
+        if (!the_node) {
+            logger.error('the node[id=' + node + '] can not be found.');
+            return;
+        }
+        var nodes_to_remove = this._collect_subtree_nodes(the_node, {
+            includeChildren: true,
+            respectFilter: false,
+            skipRootFilter: false,
+        });
+        if (!nodes_to_remove.length) {
+            nodes_to_remove = [the_node];
+        }
+        var removed = this._remove_selection(nodes_to_remove);
+        if (removed.length) {
+            if (this.mind.selected && this.mind.selected.id === the_node.id) {
+                this.mind.selected = null;
+            }
+            var removedIds = removed.map(function (n) { return n.id; });
+            this._selection_mode = this._derive_selection_mode();
+            this.invoke_event_handle(EventType.select, {
+                evt: 'multi_deselect',
+                data: removedIds,
+                node: the_node.id,
+                nodes: removedIds,
+            });
+        }
+    }
+    /**
+     * Clear all current selections and return the nodes that were cleared.
+     * @returns {import('./jsmind.node.js').Node[]}
+     * @private
+     */
+    _clear_selection_state() {
+        this._selection_mode = null;
+        if (!this.mind.selected_nodes.size) {
+            this.view.clear_all_selected_nodes();
+            return [];
+        }
+        var nodes = Array.from(this.mind.selected_nodes);
+        this.mind.selected_nodes.clear();
+        this.view.remove_selected_nodes(nodes);
+        return nodes;
+    }
+    /**
+     * Collect a node and optionally its descendants respecting filters.
+     * @param {import('./jsmind.node.js').Node} node
+     * @param {{includeChildren?:boolean, respectFilter?:boolean, skipRootFilter?:boolean}=} config
+     * @returns {import('./jsmind.node.js').Node[]}
+     * @private
+     */
+    _collect_subtree_nodes(node, config) {
+        var opts = config || {};
+        var includeChildren = opts.includeChildren !== false;
+        var respectFilter = !!opts.respectFilter;
+        var skipRootFilter = !!opts.skipRootFilter;
+        var filter = respectFilter ? this._get_selection_filter() : null;
+        var collected = [];
+        var traverse = function (current, isRoot) {
+            var includeCurrent = true;
+            if (filter && !(skipRootFilter && isRoot)) {
+                includeCurrent = filter(current) !== false;
+            }
+            if (includeCurrent) {
+                collected.push(current);
+            }
+            if (!includeChildren) {
+                return;
+            }
+            var children = current.children || [];
+            for (var i = 0; i < children.length; i++) {
+                traverse(children[i], false);
+            }
+        };
+        traverse(node, true);
+        return collected;
+    }
+    /**
+     * Ensure ancestors of provided nodes are also selected (up to first selected ancestor).
+     * @param {import('./jsmind.node.js').Node[]} nodes
+     * @param {import('./jsmind.node.js').Node=} focusNode
+     * @returns {import('./jsmind.node.js').Node[]}
+     * @private
+     */
+    /**
+     * @param {import('./jsmind.node.js').Node[]} nodes
+     * @param {import('./jsmind.node.js').Node=} focusNode
+     * @param {{requireAncestorChainSelected?: boolean}=} options
+     * @returns {import('./jsmind.node.js').Node[]}
+     * @private
+     */
+    _ensure_ancestor_selection(nodes, focusNode, options) {
+        if (!nodes || !nodes.length) {
+            return [];
+        }
+        var requireChain = !!(options && options.requireAncestorChainSelected);
+        var ancestors = [];
+        var seen = Object.create(null);
+        for (var i = 0; i < nodes.length; i++) {
+            var current = nodes[i].parent;
+            if (!current) {
+                continue;
+            }
+            var path = [];
+            var chainValid = !requireChain;
+            while (current) {
+                if (this.mind.selected_nodes.has(current)) {
+                    chainValid = true;
+                    break;
+                }
+                path.push(current);
+                current = current.parent;
+            }
+            if (!chainValid) {
+                continue;
+            }
+            for (var p = 0; p < path.length; p++) {
+                var ancestorNode = path[p];
+                if (!this.mind.selected_nodes.has(ancestorNode) && !seen[ancestorNode.id]) {
+                    ancestors.push(ancestorNode);
+                    seen[ancestorNode.id] = true;
+                }
+            }
+        }
+        if (!ancestors.length) {
+            return [];
+        }
+        var anchor = focusNode || nodes[nodes.length - 1];
+        return this._append_selection(ancestors, { focusNode: anchor });
+    }
+    /**
+     * Get the configured selection filter callback, if any.
+     * @returns {((node: import('./jsmind.node.js').Node)=>boolean)|null}
+     * @private
+     */
+    _get_selection_filter() {
+        var selection = this.options.selection || {};
+        if (selection && typeof selection.filter === 'function') {
+            return selection.filter;
+        }
+        return null;
+    }
+    /**
+     * Determine the multi-select mode based on event modifiers.
+     * Returns: null (single select), 'ctrl' (add/remove), 'shift' (range select)
+     * @param {MouseEvent} e
+     * @returns {null|'ctrl'|'shift'}
+     * @private
+     */
+    _get_multi_select_mode(e) {
+        var selection = this.options.selection || {};
+        if (!selection.enable_multi_select) {
+            return null;
+        }
+        if (!e) {
+            return null;
+        }
+        if (e.shiftKey) {
+            return 'shift';
+        }
+        if (e.ctrlKey || e.metaKey) {
+            return 'ctrl';
+        }
+        return null;
+    }
+    /**
+     * Toggle selection of a single node (add if not selected, remove if selected).
+     * Used for Ctrl+Click behavior.
+     * @param {string | import('./jsmind.node.js').Node} node_id
+     * @private
+     */
+    _toggle_node_selection(node_id) {
+        var node = Node.is_node(node_id) ? node_id : this.get_node(node_id);
+        if (!node || !this.layout.is_visible(node)) {
+            return;
+        }
+        var isSelected = this.mind.selected_nodes.has(node);
+        if (isSelected) {
+            // Deselect this node and all its descendants
+            this._deselect_subtree(node);
+        } else {
+            this._selection_mode = 'multi';
+            var added = this._append_selection([node]);
+            if (added.length) {
+                this.mind.selected = node;
+                this._last_selected_node = node;
+                this.invoke_event_handle(EventType.select, {
+                    evt: 'multi_select',
+                    data: [node.id],
+                    node: node.id,
+                    nodes: [node.id],
+                });
+            }
+        }
+    }
+    /**
+     * Range select nodes for Shift+Click behavior.
+     * Logic:
+     * - If no nodes are currently selected: select all nodes under the clicked node
+     * - If nodes are already selected: select nodes in the range from first selected to clicked node
+     * @param {string | import('./jsmind.node.js').Node} node_id
+     * @private
+     */
+    _range_select_nodes(node_id) {
+        var node = Node.is_node(node_id) ? node_id : this.get_node(node_id);
+        if (!node || !this.layout.is_visible(node)) {
+            return;
+        }
+
+        // If no nodes are currently selected, select all nodes under this node
+        if (this.mind.selected_nodes.size === 0) {
+            var descendantNodes = this._collect_subtree_nodes(node, {
+                includeChildren: true,
+                respectFilter: true,
+                skipRootFilter: true,
+            });
+            if (!descendantNodes.length) {
+                descendantNodes = [node];
+            }
+            var added = this._append_selection(descendantNodes);
+            if (added.length) {
+                this.mind.selected = node;
+                this._last_selected_node = node;
+                this._selection_mode = this._derive_selection_mode();
+                var addedIds = added.map(n => n.id);
+                this.invoke_event_handle(EventType.select, {
+                    evt: 'multi_select',
+                    data: addedIds,
+                    node: node.id,
+                    nodes: addedIds,
+                });
+            }
+            return;
+        }
+
+        // If nodes are already selected, select range from anchor (prefer last selected if still selected) to current node
+        var selectedNodesArray = Array.from(this.mind.selected_nodes);
+        var firstSelectedNode = selectedNodesArray[0];
+        var anchorNode = (this._last_selected_node && this.mind.selected_nodes.has(this._last_selected_node))
+            ? this._last_selected_node
+            : firstSelectedNode;
+
+        // Build base nodes from the linear range between anchor and current node
+        var nodesBetween = this._find_nodes_between(anchorNode, node);
+        if (!nodesBetween.length) {
+            nodesBetween = [node];
+        }
+        // Keep only top-most nodes so that each branch's whole subtree will be included
+        var baseNodes = this._remove_descendant_nodes(nodesBetween);
+
+        // Always include all descendants for each base node
+        var expandedSet = this._expand_with_descendants(baseNodes, { respectFilter: false });
+
+        // Step 3: Promote parents only when conditions are met (see method for rules)
+        expandedSet = this._promote_parents_when_children_selected(expandedSet);
+
+        // Step 4: Add to current selection (do not clear existing Ctrl selections)
+        var toAddArr = Array.from(expandedSet).filter(function (n) { return !this.mind.selected_nodes.has(n); }.bind(this));
+        var added = this._append_selection(toAddArr);
+        if (added.length) {
+            this.mind.selected = node;
+            this._last_selected_node = node;
+            this._selection_mode = this._derive_selection_mode();
+            var addedIds = added.map(function (n) { return n.id; });
+            this.invoke_event_handle(EventType.select, {
+                evt: 'multi_select',
+                data: addedIds,
+                node: node.id,
+                nodes: addedIds,
+            });
+        }
+    }
+    /**
+     * Find all nodes between two nodes (for range selection).
+     * This includes both nodes and all nodes in between them in tree order.
+     * @param {import('./jsmind.node.js').Node} node1
+     * @param {import('./jsmind.node.js').Node} node2
+     * @returns {import('./jsmind.node.js').Node[]}
+     * @private
+     */
+    _find_nodes_between(node1, node2) {
+        if (!node1 || !node2) {
+            return [];
+        }
+        // Get all visible nodes in tree order
+        var allNodes = [];
+        var traverse = (node) => {
+            if (this.layout.is_visible(node)) {
+                allNodes.push(node);
+            }
+            if (node.children && node.children.length) {
+                for (var i = 0; i < node.children.length; i++) {
+                    traverse(node.children[i]);
+                }
+            }
+        };
+        if (this.mind && this.mind.root) {
+            traverse(this.mind.root);
+        }
+        // Find indices of both nodes
+        var idx1 = -1, idx2 = -1;
+        for (var i = 0; i < allNodes.length; i++) {
+            if (allNodes[i].id === node1.id) idx1 = i;
+            if (allNodes[i].id === node2.id) idx2 = i;
+        }
+        if (idx1 === -1 || idx2 === -1) {
+            return [];
+        }
+        // Return nodes between (inclusive)
+        var start = Math.min(idx1, idx2);
+        var end = Math.max(idx1, idx2);
+        return allNodes.slice(start, end + 1);
+    }
+
+    /**
+     * Check whether ancestor is an ancestor of node.
+     * @param {import('./jsmind.node.js').Node} ancestor
+     * @param {import('./jsmind.node.js').Node} node
+     * @returns {boolean}
+     * @private
+     */
+    _is_ancestor_of(ancestor, node) {
+        if (!ancestor || !node) return false;
+        var cur = node.parent;
+        while (cur) {
+            if (cur === ancestor) return true;
+            cur = cur.parent;
+        }
+        return false;
+    }
+
+    /**
+     * Return nodes along the ancestor->descendant chain, inclusive. If 'ancestor' is not actually
+     * an ancestor of 'descendant', returns empty array.
+     * @param {import('./jsmind.node.js').Node} ancestor
+     * @param {import('./jsmind.node.js').Node} descendant
+     * @returns {import('./jsmind.node.js').Node[]}
+     * @private
+     */
+    _get_path_nodes(ancestor, descendant) {
+        if (!ancestor || !descendant) return [];
+        var stack = [];
+        var cur = descendant;
+        while (cur) {
+            stack.push(cur);
+            if (cur === ancestor) break;
+            cur = cur.parent;
+        }
+        if (!stack.length || stack[stack.length - 1] !== ancestor) {
+            return [];
+        }
+        // stack is [descendant ... ancestor]; reverse to ancestor..descendant
+        stack.reverse();
+        return stack;
+    }
+
+    /**
+     * Find nearest selected ancestor of the given node from current selection set.
+     * @param {import('./jsmind.node.js').Node} node
+     * @returns {import('./jsmind.node.js').Node|null}
+     * @private
+     */
+    _find_nearest_selected_ancestor(node) {
+        if (!node || !this.mind || !this.mind.selected_nodes) return null;
+        var cur = node.parent;
+        while (cur) {
+            if (this.mind.selected_nodes.has(cur)) return cur;
+            cur = cur.parent;
+        }
+        return null;
+    }
+
+    /**
+     * Find lowest common ancestor of two nodes.
+     * @param {import('./jsmind.node.js').Node} a
+     * @param {import('./jsmind.node.js').Node} b
+     * @returns {import('./jsmind.node.js').Node|null}
+     * @private
+     */
+    _find_lca(a, b) {
+        if (!a || !b) return null;
+        if (a === b) return a.parent || a; // trivial
+        var ancestors = new Set();
+        var cur = a;
+        while (cur) {
+            ancestors.add(cur);
+            cur = cur.parent;
+        }
+        cur = b;
+        while (cur) {
+            if (ancestors.has(cur)) return cur;
+            cur = cur.parent;
+        }
+        return null;
+    }
+
+    /**
+     * Given a lowest common ancestor 'lca' and a descendant 'node',
+     * return the direct child of lca that lies on the path to node.
+     * Returns null if node is not a descendant of lca or node === lca.
+     * @param {import('./jsmind.node.js').Node} lca
+     * @param {import('./jsmind.node.js').Node} node
+     * @returns {import('./jsmind.node.js').Node|null}
+     * @private
+     */
+    _child_on_path(lca, node) {
+        if (!lca || !node) return null;
+        if (lca === node) return null;
+        var cur = node;
+        while (cur && cur.parent && cur.parent !== lca) {
+            cur = cur.parent;
+        }
+        if (cur && cur.parent === lca) return cur;
+        return null;
+    }
+
+    /**
+     * From a list of nodes, remove those that are ancestors of any other node in the same list.
+     * Keeps only the deepest nodes so that we don't auto-select parents implicitly.
+     * @param {import('./jsmind.node.js').Node[]} nodes
+     * @returns {import('./jsmind.node.js').Node[]}
+     * @private
+     */
+    _remove_ancestor_nodes(nodes, preserveSet) {
+        if (!nodes || !nodes.length) return [];
+        var preserve = preserveSet || new Set();
+        var result = [];
+        for (var i = 0; i < nodes.length; i++) {
+            var n = nodes[i];
+            if (preserve.has(n)) {
+                result.push(n);
+                continue;
+            }
+            var isAncestor = false;
+            for (var j = 0; j < nodes.length; j++) {
+                if (i === j) continue;
+                if (this._is_ancestor_of(n, nodes[j])) {
+                    isAncestor = true;
+                    break;
+                }
+            }
+            if (!isAncestor) result.push(n);
+        }
+        return result;
+    }
+
+    /**
+     * From a list of nodes, remove those that are descendants of any other node in the same list.
+     * Keeps only top-most nodes so that expanding subtrees covers full branches across siblings.
+     * @param {import('./jsmind.node.js').Node[]} nodes
+     * @returns {import('./jsmind.node.js').Node[]}
+     * @private
+     */
+    _remove_descendant_nodes(nodes) {
+        if (!nodes || !nodes.length) return [];
+        var result = [];
+        for (var i = 0; i < nodes.length; i++) {
+            var n = nodes[i];
+            var isDescendant = false;
+            for (var j = 0; j < nodes.length; j++) {
+                if (i === j) continue;
+                if (this._is_ancestor_of(nodes[j], n)) {
+                    isDescendant = true;
+                    break;
+                }
+            }
+            if (!isDescendant) result.push(n);
+        }
+        return result;
+    }
+
+    /**
+     * Expand a set of base nodes with all their descendants (and themselves).
+     * @param {import('./jsmind.node.js').Node[]} nodes
+     * @param {{respectFilter?: boolean}=} opts
+     * @returns {Set<import('./jsmind.node.js').Node>}
+     * @private
+     */
+    _expand_with_descendants(nodes, opts) {
+        var respectFilter = !!(opts && opts.respectFilter);
+        var out = new Set();
+        if (!nodes || !nodes.length) return out;
+        for (var i = 0; i < nodes.length; i++) {
+            var base = nodes[i];
+            var list = this._collect_subtree_nodes(base, {
+                includeChildren: true,
+                respectFilter: respectFilter,
+                skipRootFilter: true,
+            });
+            for (var k = 0; k < list.length; k++) {
+                out.add(list[k]);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Promote parents into selection ONLY when all their direct children are selected
+     * AND at least one ancestor of that parent is already selected (in previous selection set).
+     * This avoids auto-selecting parents when only siblings are selected.
+     * @param {Set<import('./jsmind.node.js').Node>} set
+     * @returns {Set<import('./jsmind.node.js').Node>}
+     * @private
+     */
+    _promote_parents_when_children_selected(set) {
+        if (!set || !set.size) return set || new Set();
+        var selectedSet = new Set(set);
+        var prevSel = (this.mind && this.mind.selected_nodes) ? this.mind.selected_nodes : new Set();
+        var changed = true;
+        while (changed) {
+            changed = false;
+            var toAdd = [];
+            selectedSet.forEach(function (node) {
+                var p = node.parent;
+                if (!p) return;
+                if (selectedSet.has(p)) return;
+                // require an ancestor of p to be in previous selection
+                var ancestorSelected = false;
+                var cur = p.parent;
+                while (cur) {
+                    if (prevSel.has(cur)) {
+                        ancestorSelected = true;
+                        break;
+                    }
+                    cur = cur.parent;
+                }
+                if (ancestorSelected) toAdd.push(p);
+            });
+            if (toAdd.length) {
+                for (var t = 0; t < toAdd.length; t++) {
+                    selectedSet.add(toAdd[t]);
+                }
+                changed = true;
+            }
+        }
+        return selectedSet;
+    }
+
+    /**
+     * Determine selection mode based on current selection size.
+     * @returns {'single'|'multi'|null}
+     * @private
+     */
+    _derive_selection_mode() {
+        var size = this.mind.selected_nodes.size;
+        if (size === 0) {
+            return null;
+        }
+        return size > 1 ? 'multi' : 'single';
     }
     /**
      * Find the previous sibling node of the given node.

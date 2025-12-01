@@ -878,6 +878,102 @@ describe('add_nodes', () => {
     });
 });
 
+describe('multi selection', () => {
+    function setupSelectionMind(customOptions = {}) {
+        const jsmind = create_fake_mind(customOptions);
+        jsmind.layout.is_visible = jest.fn().mockReturnValue(true);
+        jsmind.view.select_node = jest.fn();
+        jsmind.view.append_selected_nodes = jest.fn();
+        jsmind.view.remove_selected_nodes = jest.fn();
+        jsmind.view.clear_all_selected_nodes = jest.fn();
+        jsmind.invoke_event_handle = jest.fn();
+        return jsmind;
+    }
+
+    test('toggle_subtree_selection selects and deselects entire subtree', () => {
+        const jsmind = setupSelectionMind();
+        const parent = jsmind.get_node('node1');
+        const child = jsmind.mind.add_node(parent, 'child-1', 'child');
+
+        jsmind.toggle_subtree_selection(parent);
+        const selectedIds = jsmind.get_selected_nodes().map(node => node.id);
+        expect(selectedIds).toEqual(expect.arrayContaining(['node1', 'child-1']));
+        expect(jsmind.view.append_selected_nodes).toHaveBeenCalled();
+
+        jsmind.toggle_subtree_selection(parent);
+        expect(jsmind.get_selected_nodes()).toHaveLength(0);
+        expect(jsmind.view.remove_selected_nodes).toHaveBeenCalled();
+    });
+
+    test('selection filter skips nodes flagged by predicate', () => {
+        const filter = node => !(node.data && node.data.skip === true);
+        const jsmind = setupSelectionMind({ selection: { filter } });
+        const parent = jsmind.get_node('node1');
+        const child = jsmind.mind.add_node(parent, 'child-1', 'child');
+        child.data.skip = true;
+
+        jsmind.toggle_subtree_selection(parent);
+        const selectedIds = jsmind.get_selected_nodes().map(node => node.id);
+        expect(selectedIds).toContain('node1');
+        expect(selectedIds).not.toContain('child-1');
+    });
+
+    test('include_descendants=false only toggles the clicked node', () => {
+        const jsmind = setupSelectionMind({ selection: { include_descendants: false } });
+        const parent = jsmind.get_node('node1');
+        jsmind.mind.add_node(parent, 'child-1', 'child');
+
+        jsmind.toggle_subtree_selection(parent);
+        const selectedIds = jsmind.get_selected_nodes().map(node => node.id);
+        expect(selectedIds).toEqual(['node1']);
+    });
+
+    test('select_node clears previously multi-selected nodes', () => {
+        const jsmind = setupSelectionMind();
+        const parent = jsmind.get_node('node1');
+        const child = jsmind.mind.add_node(parent, 'child-1', 'child');
+
+        jsmind.toggle_subtree_selection(parent);
+        jsmind.select_node(child);
+
+        const selectedIds = jsmind.get_selected_nodes().map(node => node.id);
+        expect(selectedIds).toEqual(['child-1']);
+        expect(jsmind.view.clear_all_selected_nodes).toHaveBeenCalled();
+    });
+
+    test('ctrl/cmd click after single select expands subtree', () => {
+        const jsmind = setupSelectionMind();
+        const parent = jsmind.get_node('node1');
+        const child = jsmind.mind.add_node(parent, 'child-1', 'child');
+
+        jsmind.select_node(parent);
+        jsmind.toggle_subtree_selection(parent);
+
+        const selectedIds = jsmind.get_selected_nodes().map(node => node.id);
+        expect(selectedIds).toEqual(expect.arrayContaining(['node1', 'child-1']));
+    });
+
+    test('reselecting child re-adds full ancestor chain only when higher ancestor selected', () => {
+        const jsmind = setupSelectionMind();
+        const root = jsmind.mind.root;
+        const parent = jsmind.mind.add_node(root, 'node-parent', 'parent');
+        const child = jsmind.mind.add_node(parent, 'node-child', 'child');
+        const grandchild = jsmind.mind.add_node(child, 'node-grandchild', 'grandchild');
+
+        // Select grandchild while no ancestor is selected: only the grandchild stays selected
+        jsmind.toggle_subtree_selection(grandchild);
+        expect(jsmind.get_selected_nodes().map(node => node.id)).toEqual(['node-grandchild']);
+
+        // Select root, then toggle the grandchild again; all ancestors between root and grandchild should be selected
+        jsmind.select_node(root);
+        jsmind.toggle_subtree_selection(grandchild);
+        const selectedIdsWithChain = jsmind.get_selected_nodes().map(node => node.id);
+        expect(selectedIdsWithChain).toEqual(
+            expect.arrayContaining(['node-parent', 'node-child', 'node-grandchild', 'root'])
+        );
+    });
+});
+
 function create_mock_node(id, topic, additionalProps = {}) {
     return {
         id: id,

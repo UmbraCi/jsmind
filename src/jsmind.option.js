@@ -35,6 +35,7 @@ import { util } from './jsmind.util.js';
  *  layout?: { hspace?:number, vspace?:number, pspace?:number, cousin_space?:number },
  *  default_event_handle?: { enable_mousedown_handle?:boolean, enable_click_handle?:boolean, enable_dblclick_handle?:boolean, enable_mousewheel_handle?:boolean },
  *  shortcut?: { enable?:boolean, handles?: Record<string,(jm: import('./jsmind.js').default, e: KeyboardEvent)=>void>, mapping?: Record<string, number|number[]>, id_generator?: ()=>string },
+ *  selection?: { enable_multi_select?: boolean, include_descendants?: boolean, filter?: (node: import('./jsmind.node.js').Node)=>boolean },
  *  fieldNames?: { id?:string, topic?:string, children?:string, parentid?:string, isroot?:string, direction?:string, expanded?:string },
  *  plugin?: Record<string, object>
  * }} JsMindRuntimeOptions
@@ -94,6 +95,11 @@ const default_options = {
             right: 39, // Right
             down: 40, // Down
         },
+    },
+    selection: {
+        enable_multi_select: false,
+        include_descendants: false,
+        filter: null,
     },
     // Field names mapping for custom data structure
     // Similar to Ant Design's fieldNames prop
