@@ -190,10 +190,51 @@ const historyConfig = {
     ],
 };
 
+// Copy-paste plugin configuration
+const copyPasteConfig = {
+    input: 'src/plugins/copy-paste/copy-paste-plugin-simple.js',
+    output: [
+        // ES Module
+        {
+            file: 'es/jsmind.copy-paste.js',
+            format: 'es',
+            banner,
+            sourcemap: true,
+        },
+        // CommonJS
+        {
+            file: 'lib/jsmind.copy-paste.js',
+            format: 'cjs',
+            banner,
+            sourcemap: true,
+            exports: 'named',
+        },
+        // UMD
+        {
+            name: 'jsMindCopyPaste',
+            file: 'dist/jsmind.copy-paste.js',
+            format: 'umd',
+            banner,
+            sourcemap: true,
+            globals: { '@umbraci/jsmind': 'jsMind' },
+            exports: 'named',
+        },
+    ],
+    external: ['@umbraci/jsmind'],
+    plugins: [
+        resolve({
+            preferBuiltins: false,
+        }),
+        cleanupPlugin,
+        terserPlugin,
+    ],
+};
+
 export default [
     mainConfig,
     draggableNodeConfig,
     screenshotConfig,
     multilineTextConfig,
     historyConfig,
+    copyPasteConfig
 ];

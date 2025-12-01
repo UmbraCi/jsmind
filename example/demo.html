@@ -29,6 +29,9 @@
         <div style="margin: 8px 0; color: #666; font-size: 14px">
             💡 提示：选中任意节点后按 <kbd>Tab</kbd> 键可以快速添加子节点并进入编辑模式
         </div>
+        <div style="margin: 8px 0; color: #666; font-size: 14px">
+            ✂️ 复制粘贴提示：可以使用 Ctrl/Cmd+C/V/X 快捷键，或者点击下方按钮进行复制、粘贴、剪切操作
+        </div>
         <div id="history_controls" style="margin: 8px 0">
             <button id="btn_undo" onclick="h_undo()">Undo</button>
             <button id="btn_redo" onclick="h_redo()">Redo</button>
@@ -54,12 +57,22 @@
             </button>
             <span id="history_status" style="margin-left: 10px; color: #666"></span>
         </div>
+        <div id="copypaste_controls" style="margin: 8px 0">
+            <button onclick="cp_copy()" style="background-color: #4caf50; color: white">复制节点 (Ctrl+C)</button>
+            <button onclick="cp_paste()" style="background-color: #2196f3; color: white">粘贴节点 (Ctrl+V)</button>
+            <button onclick="cp_cut()" style="background-color: #ff5722; color: white">剪切节点 (Ctrl+X)</button>
+            <button onclick="cp_clear_clipboard()">清空剪贴板</button>
+            <button onclick="cp_show_status()">显示剪贴板状态</button>
+            <span id="copypaste_status" style="margin-left: 10px; color: #666"></span>
+        </div>
 
         <script type="text/javascript" src="../dist/jsmind.js"></script>
         <script type="text/javascript" src="../dist/jsmind.draggable-node.js"></script>
         <script type="text/javascript" src="../dist/jsmind.multiline-text.js"></script>
         <!-- 新增：历史记录插件（UMD 构建） -->
         <script type="text/javascript" src="../dist/jsmind.history.js"></script>
+        <!-- 新增：复制粘贴插件（UMD 构建） -->
+        <script type="text/javascript" src="../dist/jsmind.copy-paste.js"></script>
         <script type="text/javascript" src="../features/jsmind.shell.js"></script>
         <script type="text/javascript">
             var _jm = null;
@@ -87,7 +100,7 @@
                         },
                         { id: 'sub13', parentid: 'sub1', name: '样式支持\n可自定义宽度和高度' },
 
-                        { id: 'sub2', parentid: 'root', name: '使用说明\n双击节点开始编辑' },
+                        { id: 'sub2', parentid: 'root', name: '使用说明\n双击节点开始编辑',tag:'P1' },
                         {
                             id: 'sub21',
                             parentid: 'sub2',
@@ -114,11 +127,14 @@
                     { keymap: { enabled: true, redoUsesY: false } }
                 );
 
+                // 注册复制粘贴插件 - 简化版已经通过 jsMind.register_plugin 自动注册
+
                 var options = {
                     container: 'jsmind_container',
                     editable: true,
                     theme: 'primary',
                     log_level: 'debug',
+                    mode:'side',
                     // 使用 fieldNames 配置，将 topic 映射为 name
                     fieldNames: {
                         topic: 'name',
@@ -625,6 +641,148 @@
                 }, 150); // 延迟 150ms，确保 history 插件的 setTimeout(100ms) 已执行
             }
 
+            // ----- Copy-Paste demo helpers -----
+            function cp_copy() {
+                if (!_jm) {
+                    alert('jsMind 未初始化');
+                    return;
+                }
+
+                var selectedNode = _jm.get_selected_node();
+                if (!selectedNode) {
+                    alert('请先选择要复制的节点');
+                    return;
+                }
+
+                try {
+                    // 直接调用插件的复制方法
+                    if (_jm.copy_paste_handler) {
+                        _jm.copy_paste_handler.handleCopy({
+                            preventDefault: function() {}
+                        });
+                        cp_update_status('已复制 1 个节点');
+                    } else {
+                        alert('复制插件未找到');
+                    }
+                } catch (error) {
+                    alert('复制失败: ' + error.message);
+                }
+            }
+
+            function cp_paste() {
+                if (!_jm) {
+                    alert('jsMind 未初始化');
+                    return;
+                }
+
+                var selectedNode = _jm.get_selected_node();
+                if (!selectedNode) {
+                    alert('请先选择目标节点');
+                    return;
+                }
+
+                try {
+                    // 直接调用插件的粘贴方法
+                    if (_jm.copy_paste_handler) {
+                        _jm.copy_paste_handler.handlePaste({
+                            preventDefault: function() {}
+                        });
+                        cp_update_status('粘贴成功');
+                    } else {
+                        alert('复制插件未找到');
+                    }
+                } catch (error) {
+                    alert('粘贴失败: ' + error.message);
+                }
+            }
+
+            function cp_cut() {
+                if (!_jm) {
+                    alert('jsMind 未初始化');
+                    return;
+                }
+
+                var selectedNode = _jm.get_selected_node();
+                if (!selectedNode) {
+                    alert('请先选择要剪切的节点');
+                    return;
+                }
+
+                try {
+                    // 直接调用插件的剪切方法
+                    if (_jm.copy_paste_handler) {
+                        _jm.copy_paste_handler.handleCut({
+                            preventDefault: function() {}
+                        });
+                        cp_update_status('已剪切 1 个节点');
+                    } else {
+                        alert('复制插件未找到');
+                    }
+                } catch (error) {
+                    alert('剪切失败: ' + error.message);
+                }
+            }
+
+            function cp_clear_clipboard() {
+                if (!_jm) {
+                    alert('jsMind 未初始化');
+                    return;
+                }
+
+                try {
+                    // 获取复制粘贴处理器实例并清空剪贴板
+                    if (_jm.copy_paste_handler) {
+                        _jm.copy_paste_handler.clear();
+                        cp_update_status('剪贴板已清空');
+                    } else {
+                        alert('复制粘贴插件未找到');
+                    }
+                } catch (error) {
+                    alert('清空剪贴板失败: ' + error.message);
+                }
+            }
+
+            function cp_show_status() {
+                if (!_jm) {
+                    alert('jsMind 未初始化');
+                    return;
+                }
+
+                try {
+                    if (_jm.copy_paste_handler) {
+                        var status = _jm.copy_paste_handler.getStatus();
+                        var msg = '=== 剪贴板状态 ===\n';
+                        msg += '有数据: ' + (status.hasData ? '是' : '否') + '\n';
+
+                        if (status.data) {
+                            msg += '复制的内容: ' + status.data.topic + '\n';
+                            msg += '节点ID: ' + status.data.id + '\n';
+                            if (status.data.children && status.data.children.length > 0) {
+                                msg += '子节点数: ' + status.data.children.length + '\n';
+                            }
+                        }
+
+                        alert(msg);
+                    } else {
+                        alert('复制粘贴插件未找到');
+                    }
+                } catch (error) {
+                    alert('获取剪贴板状态失败: ' + error.message);
+                }
+            }
+
+            function cp_update_status(message) {
+                var statusSpan = document.getElementById('copypaste_status');
+                if (statusSpan) {
+                    statusSpan.textContent = message;
+                    // 3秒后清空状态消息
+                    setTimeout(function() {
+                        statusSpan.textContent = '';
+                    }, 3000);
+                }
+            }
+
+            
             load_jsmind();
         </script>
     </body>
