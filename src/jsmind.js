@@ -231,17 +231,52 @@ export default class jsMind {
         if (!!node_id) {
             if (this.view.is_node(element)) {
                 if (mode === 'ctrl') {
-                    // Ctrl+Click: add/remove (deselect subtree if already selected)
+                    // Ctrl/Cmd + Click: toggle single node (add/remove only this node)
                     this._toggle_node_selection(node_id);
                 } else if (mode === 'shift') {
-                    // Shift+Click: if node is already selected, deselect subtree; otherwise do range select
-                    if (this.is_node_selected(node_id)) {
-                        this._deselect_subtree(node_id);
+                    // Shift+Click behavior:
+                    // - Default (shift_simple_mode=false): select ONLY the clicked node and ALL its descendants (no siblings)
+                    // - When shift_simple_mode=true: enable range mode (may include sibling branches per anchor..target)
+                    if (this.options.selection && this.options.selection.shift_simple_mode) {
+                        // Range mode
+                        if (this.is_node_selected(node_id)) {
+                            this._deselect_subtree(node_id);
+                        } else {
+                            this._range_select_nodes(node_id);
+                        }
                     } else {
-                        this._range_select_nodes(node_id);
+                        // Simple subtree mode (default)
+                        var base = this.get_node(node_id);
+                        if (base) {
+                            if (this.is_node_selected(node_id)) {
+                                this._deselect_subtree(node_id);
+                            } else {
+                                var nodes_to_add = this._collect_subtree_nodes(base, {
+                                    includeChildren: true,
+                                    respectFilter: true,
+                                    skipRootFilter: true,
+                                });
+                                if (!nodes_to_add.length) {
+                                    nodes_to_add = [base];
+                                }
+                                var added = this._append_selection(nodes_to_add, { focusNode: base });
+                                if (added.length) {
+                                    this.mind.selected = base;
+                                    this._last_selected_node = base;
+                                    this._selection_mode = this._derive_selection_mode();
+                                    var addedIds = added.map(function (n) { return n.id; });
+                                    this.invoke_event_handle(EventType.select, {
+                                        evt: 'multi_select',
+                                        data: addedIds,
+                                        node: base.id,
+                                        nodes: addedIds,
+                                    });
+                                }
+                            }
+                        }
                     }
                 } else {
-                // Single click: clear all and select this node
+                    // Single click: clear all and select this node only
                     this.select_node(node_id);
                 }
             }
@@ -1497,14 +1532,192 @@ export default class jsMind {
         if (!nodesBetween.length) {
             nodesBetween = [node];
         }
-        // Keep only top-most nodes so that each branch's whole subtree will be included
-        var baseNodes = this._remove_descendant_nodes(nodesBetween);
 
-        // Always include all descendants for each base node
-        var expandedSet = this._expand_with_descendants(baseNodes, { respectFilter: false });
+        // Special case: selecting another branch under the same ancestor
+        var expandedSet = new Set();
+        var expandedSetReady = false;
+        var siblingBranches = !this._is_ancestor_of(anchorNode, node) && !this._is_ancestor_of(node, anchorNode);
+        // Precompute LCA and the branch head under LCA on the path to target
+        var lca = this._find_lca(anchorNode, node);
+        var childOnPath = this._child_on_path(lca, node);
+        var anchorChild = this._child_on_path(lca, anchorNode);
+        // Branch-range under same LCA: select every sibling branch between anchor and target (inclusive), with full subtrees
+        var anchorChild = this._child_on_path(lca, anchorNode);
+        var targetChild = this._child_on_path(lca, node);
+        if (lca && anchorChild && targetChild && anchorChild !== targetChild && anchorNode === anchorChild && node === targetChild && !expandedSetReady) {
+            var lcaChildren = Array.isArray(lca.children) ? lca.children : [];
+            var ai = lcaChildren.indexOf(anchorChild);
+            var ti = lcaChildren.indexOf(targetChild);
+            if (ai >= 0 && ti >= 0) {
+                var sidx = Math.min(ai, ti);
+                var eidx = Math.max(ai, ti);
+                for (var xi = sidx; xi <= eidx; xi++) {
+                    var branchHead = lcaChildren[xi];
+                    var branchTree = this._collect_subtree_nodes(branchHead, {
+                        includeChildren: true,
+                        respectFilter: false,
+                        skipRootFilter: true,
+                    });
+                    for (var bt = 0; bt < branchTree.length; bt++) {
+                        expandedSet.add(branchTree[bt]);
+                    }
+                }
+                expandedSetReady = true;
+            }
+        }
+        if (siblingBranches && anchorChild && targetChild && anchorNode === anchorChild && node === targetChild) {
+            // Use nodesBetween to gather intermediate top-level branches (excluding anchor subtree and node's ancestor chain)
+            var midNodes = [];
+            for (var mb = 0; mb < nodesBetween.length; mb++) {
+                var m = nodesBetween[mb];
+                if (m === anchorNode) continue;
+                if (this._is_ancestor_of(anchorNode, m)) continue; // skip nodes under the anchor's branch
+                if (this._is_ancestor_of(m, node)) continue; // skip ancestors of target branch (e.g., B when clicking B-2)
+                midNodes.push(m);
+            }
+            var baseNodes = this._remove_descendant_nodes(midNodes);
+            for (var bi = 0; bi < baseNodes.length; bi++) {
+                var base = baseNodes[bi];
+                var baseFull = this._collect_subtree_nodes(base, {
+                    includeChildren: true,
+                    respectFilter: false,
+                    skipRootFilter: true,
+                });
+                for (var bfi = 0; bfi < baseFull.length; bfi++) {
+                    expandedSet.add(baseFull[bfi]);
+                }
+            }
+            // Now handle the target branch itself
+            if (childOnPath && node !== childOnPath) {
+                // descendant in target branch: include siblings up to target, including their subtrees
+                var p = node.parent;
+                if (p && Array.isArray(p.children)) {
+                    var idx = p.children.indexOf(node);
+                    for (var si = 0; si <= idx; si++) {
+                        var sib = p.children[si];
+                        var sibSubtree = this._collect_subtree_nodes(sib, {
+                            includeChildren: true,
+                            respectFilter: false,
+                            skipRootFilter: true,
+                        });
+                        for (var ssi = 0; ssi < sibSubtree.length; ssi++) {
+                            expandedSet.add(sibSubtree[ssi]);
+                        }
+                    }
+                } else {
+                    expandedSet.add(node);
+                }
+            } else {
+                // target is branch head: include its entire subtree (including the head)
+                var full = this._collect_subtree_nodes(node, {
+                    includeChildren: true,
+                    respectFilter: false,
+                    skipRootFilter: true,
+                });
+                for (var fi = 0; fi < full.length; fi++) {
+                    expandedSet.add(full[fi]);
+                }
+            }
+            expandedSetReady = true;
+        }
+        if (!expandedSetReady) {
+            // Build selection within the target branch only
+            if (childOnPath) {
+                if (node === childOnPath) {
+                    // Branch head: include its entire subtree (including the head)
+                    var fullHead = this._collect_subtree_nodes(node, {
+                        includeChildren: true,
+                        respectFilter: false,
+                        skipRootFilter: true,
+                    });
+                    for (var hi = 0; hi < fullHead.length; hi++) {
+                        expandedSet.add(fullHead[hi]);
+                    }
+                } else {
+                    // Descendant: include siblings up to target, including each sibling's subtree
+                    var p = node.parent;
+                    if (p && Array.isArray(p.children)) {
+                        var idx = p.children.indexOf(node);
+                        for (var si = 0; si <= idx; si++) {
+                            var sib = p.children[si];
+                            var sibTree = this._collect_subtree_nodes(sib, {
+                                includeChildren: true,
+                                respectFilter: false,
+                                skipRootFilter: true,
+                            });
+                            for (var sti = 0; sti < sibTree.length; sti++) {
+                                expandedSet.add(sibTree[sti]);
+                            }
+                        }
+                    } else {
+                        var onlyTree = this._collect_subtree_nodes(node, {
+                            includeChildren: true,
+                            respectFilter: false,
+                            skipRootFilter: true,
+                        });
+                        for (var oti = 0; oti < onlyTree.length; oti++) {
+                            expandedSet.add(onlyTree[oti]);
+                        }
+                    }
+                }
+            } else {
+                // Fallback: include siblings up to target under its immediate parent (and their subtrees)
+                var p2 = node.parent;
+                if (p2 && Array.isArray(p2.children)) {
+                    var idx2 = p2.children.indexOf(node);
+                    for (var sj = 0; sj <= idx2; sj++) {
+                        var s2 = p2.children[sj];
+                        var s2Tree = this._collect_subtree_nodes(s2, {
+                            includeChildren: true,
+                            respectFilter: false,
+                            skipRootFilter: true,
+                        });
+                        for (var s2i = 0; s2i < s2Tree.length; s2i++) {
+                            expandedSet.add(s2Tree[s2i]);
+                        }
+                    }
+                } else {
+                    expandedSet.add(node);
+                }
+            }
+        }
 
-        // Step 3: Promote parents only when conditions are met (see method for rules)
-        expandedSet = this._promote_parents_when_children_selected(expandedSet);
+        // Safety fallback: if nothing was inferred, include the target node and its entire subtree
+        if (expandedSet.size === 0 && node) {
+            var fallbackAll = this._collect_subtree_nodes(node, {
+                includeChildren: true,
+                respectFilter: false,
+                skipRootFilter: true,
+            });
+            for (var fk = 0; fk < fallbackAll.length; fk++) {
+                expandedSet.add(fallbackAll[fk]);
+            }
+        }
+
+        // Post-filter: if selecting a descendant within a branch, remove later siblings and their subtrees
+        if (childOnPath && node !== childOnPath && node.parent && Array.isArray(node.parent.children)) {
+            var p = node.parent;
+            var idx = p.children.indexOf(node);
+            for (var ri = idx + 1; ri < p.children.length; ri++) {
+                var rem = p.children[ri];
+                // remove the sibling and its entire subtree if present in the expanded set
+                var remNodes = this._collect_subtree_nodes(rem, {
+                    includeChildren: true,
+                    respectFilter: false,
+                    skipRootFilter: true,
+                });
+                for (var rj = 0; rj < remNodes.length; rj++) {
+                    if (expandedSet.has(remNodes[rj])) {
+                        expandedSet.delete(remNodes[rj]);
+                    }
+                }
+            }
+        }
+
+        // Always include the clicked node itself
+        if (node) {
+            expandedSet.add(node);
+        }
 
         // Step 4: Add to current selection (do not clear existing Ctrl selections)
         var toAddArr = Array.from(expandedSet).filter(function (n) { return !this.mind.selected_nodes.has(n); }.bind(this));
