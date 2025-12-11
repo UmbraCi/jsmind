@@ -33,6 +33,10 @@
             "require": "./lib/jsmind.history.js",
             "types": "./types/generated/plugins/history/jsmind.history.d.ts"
         },
+        "./multi-select": {
+            "import": "./es/jsmind.multi-select.js",
+            "require": "./lib/jsmind.multi-select.js"
+        },
         "./style/jsmind.css": "./style/jsmind.css"
     },
     "directories": {

@@ -190,10 +190,45 @@ const historyConfig = {
     ],
 };
 
+// Multi-select plugin configuration
+const multiSelectConfig = {
+    input: 'src/plugins/jsmind.multi-select.js',
+    output: [
+        // ES Module
+        {
+            file: 'es/jsmind.multi-select.js',
+            format: 'es',
+            banner,
+            sourcemap: true,
+        },
+        // CommonJS
+        {
+            file: 'lib/jsmind.multi-select.js',
+            format: 'cjs',
+            banner,
+            sourcemap: true,
+            exports: 'named',
+        },
+        // UMD
+        {
+            name: 'jsMindMultiSelect',
+            file: 'dist/jsmind.multi-select.js',
+            format: 'umd',
+            banner,
+            sourcemap: true,
+            globals: { '@umbraci/jsmind': 'jsMind' },
+            exports: 'named',
+        },
+    ],
+    external: ['@umbraci/jsmind'],
+    plugins: [cleanupPlugin, terserPlugin],
+};
+
 export default [
     mainConfig,
     draggableNodeConfig,
     screenshotConfig,
     multilineTextConfig,
     historyConfig,
+    multiSelectConfig,
 ];
