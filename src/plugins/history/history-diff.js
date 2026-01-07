@@ -594,9 +594,24 @@ export function diff(a, b, opts = {}) {
     // Categorize updates if requested (uses LIS algorithm for precise move detection)
     if (categorize && includeStructure) {
         const categorized = categorizeUpdates(updated, A, B);
+
+        // Build a Set of node IDs that are in moved or movedAndModified for O(1) lookup
+        const realMoveIdSet = new Set([
+            ...categorized.moved.map(m => m.id),
+            ...categorized.movedAndModified.map(m => m.id),
+        ]);
+
+        // Filter out passive shift nodes from updated
+        // A passive shift is a node that only has index change and is not a real move
+        const filteredUpdated = updated.filter(u => {
+            const isPassiveShift =
+                u.changes.length === 1 && u.changes[0].key === 'index' && !realMoveIdSet.has(u.id);
+            return !isPassiveShift;
+        });
+
         return {
             created,
-            updated,
+            updated: filteredUpdated,
             deleted,
             truncated,
             moved: categorized.moved,
