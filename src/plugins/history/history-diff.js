@@ -36,6 +36,7 @@ import { deepEqual } from 'fast-equals';
 
 /**
  * @typedef {Object} MoveInfo
+ * @property {'cross-parent'|'reorder'} moveType - Type of move: 'cross-parent' for different parent, 'reorder' for same parent
  * @property {boolean} parentChanged - Whether parent changed
  * @property {boolean} orderChanged - Whether order changed
  * @property {string|null} fromParent - Original parent ID
@@ -95,20 +96,14 @@ import { deepEqual } from 'fast-equals';
 /**
  * @typedef {Object} DiffOptions
  * @property {string[]} [fields] - Array of field names to compare. Defaults to ['topic', 'data', 'id'].
- *                                  When using custom fieldNames (e.g., { id: 'key', topic: 'name' }), this should be
- *                                  ['name', 'data', 'key'] to match the actual field names in the data.
- *                                  Note: When using jm.history.diff(), this is automatically handled based
- *                                  on the configured fieldNames, so you don't need to specify it manually.
+ *                                  Note: When using jm.history.diff(), this is automatically handled.
  * @property {string} [idKey] - The field name to use as the node ID. Defaults to 'id'.
- *                               When using custom fieldNames (e.g., { id: 'key' }), this should be 'key'.
  *                               Note: When using jm.history.diff(), this is automatically handled.
  * @property {string} [childrenKey] - The field name to use for children array. Defaults to 'children'.
- *                                     When using custom fieldNames (e.g., { children: 'items' }), this should be 'items'.
  *                                     Note: When using jm.history.diff(), this is automatically handled.
  * @property {boolean} [includeStructure] - Whether to include parentid and index in comparison. Defaults to true
  * @property {number} [maxSize] - Maximum number of diff results. Defaults to 5000
  * @property {boolean} [categorize] - Whether to categorize updates into moved/modified/movedAndModified. Defaults to false
- * @property {boolean} [ignoreDeletionShift] - Whether to ignore index changes caused by preceding node deletions. When true, nodes that only change index due to deletion of previous siblings won't be marked as moved. Defaults to false
  */
 
 function isFormat(obj) {
@@ -279,77 +274,189 @@ function detectMove(changes) {
     return { moved, parentChanged, orderChanged };
 }
 
+// ============================================================================
+// LIS (Longest Increasing Subsequence) Algorithm - Based on Vue 3 implementation
+// Used to precisely detect which nodes were actively moved vs passively shifted
+// ============================================================================
+
 /**
- * Check if index change is caused by deletion of preceding siblings
- * @param {Map<string, any>} beforeMap - Flattened map before changes
- * @param {Map<string, any>} afterMap - Flattened map after changes
- * @param {string} nodeId - Node ID to check
- * @param {string} parentId - Parent node ID
- * @param {number} fromIndex - Original index
- * @param {number} toIndex - New index
- * @returns {boolean} - True if index change is caused by preceding sibling deletions
+ * Compute the Longest Increasing Subsequence of an array.
+ * Returns an array of indices that form the LIS.
+ * Based on Vue 3's renderer.ts implementation.
+ *
+ * @param {number[]} arr - Array of numbers (typically new indices)
+ * @returns {number[]} - Array of indices in arr that form the LIS
+ *
+ * @example
+ * // Before: [A, B, C, D, E] (indices 0,1,2,3,4)
+ * // After:  [A, D, B, C, E] (D moved to position 1)
+ * // newIndexSequence for common nodes: [0, 2, 3, 4] (A->0, B->2, C->3, E->4, D is at 1 but was after in before)
+ * // LIS: [0, 2, 3, 4] means A, B, C, E don't need to move
+ * // D is not in LIS, so it's the one that moved
  */
-function isIndexChangeCausedByDeletion(beforeMap, afterMap, nodeId, parentId, fromIndex, toIndex) {
-    if (fromIndex <= toIndex) return false; // Only consider index decrease
+function getSequence(arr) {
+    const p = arr.slice();
+    const result = [0];
+    let i, j, u, v, c;
+    const len = arr.length;
 
-    // Count children before and after for the same parent
-    const beforeChildren = [];
-    const afterChildren = [];
-
-    for (const [id, node] of beforeMap) {
-        if (node.parentid === parentId) {
-            beforeChildren.push({ id, index: node.index });
-        }
-    }
-
-    for (const [id, node] of afterMap) {
-        if (node.parentid === parentId) {
-            afterChildren.push({ id, index: node.index });
-        }
-    }
-
-    // Sort by index
-    beforeChildren.sort((a, b) => a.index - b.index);
-    afterChildren.sort((a, b) => a.index - b.index);
-
-    // Count how many preceding siblings were deleted
-    let deletedPrecedingCount = 0;
-    for (const beforeChild of beforeChildren) {
-        if (beforeChild.index < fromIndex) {
-            // Check if this child still exists in after map
-            const stillExists = afterChildren.some(afterChild => afterChild.id === beforeChild.id);
-            if (!stillExists) {
-                deletedPrecedingCount++;
+    for (i = 0; i < len; i++) {
+        const arrI = arr[i];
+        // Skip 0 values (which represent new nodes in Vue's implementation)
+        // In our case, we filter them out before calling this function
+        if (arrI !== 0 || i === 0) {
+            j = result[result.length - 1];
+            if (arr[j] < arrI) {
+                p[i] = j;
+                result.push(i);
+                continue;
+            }
+            u = 0;
+            v = result.length - 1;
+            // Binary search for the first element >= arrI
+            while (u < v) {
+                c = (u + v) >> 1;
+                if (arr[result[c]] < arrI) {
+                    u = c + 1;
+                } else {
+                    v = c;
+                }
+            }
+            if (arrI < arr[result[u]]) {
+                if (u > 0) {
+                    p[i] = result[u - 1];
+                }
+                result[u] = i;
             }
         }
     }
 
-    // If the index shift equals the number of deleted preceding siblings,
-    // then the change is caused by deletion
-    return fromIndex - toIndex === deletedPrecedingCount;
+    // Backtrack to build the LIS
+    u = result.length;
+    v = result[u - 1];
+    while (u-- > 0) {
+        result[u] = v;
+        v = p[v];
+    }
+    return result;
 }
 
 /**
- * Categorize updated nodes into moved, modified, or movedAndModified
+ * Group nodes by their parent ID
+ * @param {Map<string, any>} nodeMap - Flattened node map
+ * @returns {Map<string|null, Array<{id: string, index: number}>>} - Map of parentId -> children array
+ */
+function groupByParent(nodeMap) {
+    const groups = new Map();
+    for (const [id, node] of nodeMap) {
+        const parentId = node.parentid;
+        if (!groups.has(parentId)) {
+            groups.set(parentId, []);
+        }
+        groups.get(parentId).push({ id, index: node.index });
+    }
+    // Sort each group by index
+    for (const children of groups.values()) {
+        children.sort((a, b) => a.index - b.index);
+    }
+    return groups;
+}
+
+/**
+ * Use LIS algorithm to detect which nodes were truly moved within the same parent.
+ * Nodes in the LIS are "stable" (didn't move), nodes outside LIS are "moved".
+ *
+ * @param {Array<{id: string, index: number}>} beforeChildren - Children before change (sorted by index)
+ * @param {Array<{id: string, index: number}>} afterChildren - Children after change (sorted by index)
+ * @param {Map<string, any>} afterMap - Full after map to check existence
+ * @returns {Set<string>} - Set of node IDs that were truly moved (not in LIS)
+ */
+function detectRealMovesWithLIS(beforeChildren, afterChildren, afterMap) {
+    const movedIds = new Set();
+
+    // Filter to only common nodes (exist in both before and after)
+    const afterIdToIndex = new Map();
+    afterChildren.forEach((c, i) => afterIdToIndex.set(c.id, i));
+
+    // Build the sequence of new indices for common nodes (in before order)
+    const commonNodes = [];
+    const newIndexSequence = [];
+
+    for (const beforeChild of beforeChildren) {
+        if (afterIdToIndex.has(beforeChild.id)) {
+            commonNodes.push(beforeChild.id);
+            newIndexSequence.push(afterIdToIndex.get(beforeChild.id));
+        }
+    }
+
+    if (commonNodes.length <= 1) {
+        // 0 or 1 common node - no reordering possible
+        return movedIds;
+    }
+
+    // Compute LIS
+    const lisIndices = getSequence(newIndexSequence);
+    const lisSet = new Set(lisIndices);
+
+    // Nodes NOT in LIS are the ones that truly moved
+    commonNodes.forEach((id, i) => {
+        if (!lisSet.has(i)) {
+            movedIds.add(id);
+        }
+    });
+
+    return movedIds;
+}
+
+/**
+ * Categorize updated nodes into moved, modified, or movedAndModified.
+ * Uses LIS algorithm for precise move detection.
+ *
  * @param {{ id: string, before: any, after: any, changes: { key: string, before: any, after: any }[] }[]} updates
+ * @param {Map<string, any>} beforeMap - Flattened map before changes
+ * @param {Map<string, any>} afterMap - Flattened map after changes
  * @returns {{
- *   moved: { id: string, before: any, after: any, moveInfo: { parentChanged: boolean, orderChanged: boolean, fromParent: any, toParent: any, fromOrder: any, toOrder: any } }[],
+ *   moved: { id: string, before: any, after: any, moveInfo: MoveInfo }[],
  *   modified: { id: string, before: any, after: any, changes: { key: string, before: any, after: any }[] }[],
- *   movedAndModified: { id: string, before: any, after: any, changes: { key: string, before: any, after: any }[], moveInfo: { parentChanged: boolean, orderChanged: boolean, fromParent: any, toParent: any, fromOrder: any, toOrder: any } }[]
+ *   movedAndModified: { id: string, before: any, after: any, changes: { key: string, before: any, after: any }[], moveInfo: MoveInfo }[]
  * }}
  */
-function categorizeUpdates(updates) {
+function categorizeUpdates(updates, beforeMap, afterMap) {
     const moved = [];
     const modified = [];
     const movedAndModified = [];
+
+    // Pre-compute real moves using LIS algorithm
+    const realMoveIds = new Set();
+    const beforeByParent = groupByParent(beforeMap);
+    const afterByParent = groupByParent(afterMap);
+
+    // For each parent in after, detect real moves among common nodes
+    for (const [parentId, afterChildren] of afterByParent) {
+        const beforeChildren = beforeByParent.get(parentId) || [];
+        const parentRealMoves = detectRealMovesWithLIS(beforeChildren, afterChildren, afterMap);
+        for (const id of parentRealMoves) {
+            realMoveIds.add(id);
+        }
+    }
 
     for (const update of updates) {
         const { id, before, after, changes } = update;
         const moveDetection = detectMove(changes);
 
-        if (moveDetection.moved) {
-            // Build moveInfo
+        // Cross-parent move is always a "real" move
+        const isCrossParentMove = moveDetection.parentChanged;
+
+        // For same-parent index changes, use LIS to determine if it's a real move
+        const isRealReorderMove =
+            !isCrossParentMove && moveDetection.orderChanged && realMoveIds.has(id);
+
+        const isRealMove = isCrossParentMove || isRealReorderMove;
+
+        if (isRealMove) {
+            // Build moveInfo with moveType
             const moveInfo = {
+                moveType: isCrossParentMove ? 'cross-parent' : 'reorder',
                 parentChanged: moveDetection.parentChanged,
                 orderChanged: moveDetection.orderChanged,
                 fromParent: before.parentid,
@@ -368,6 +475,13 @@ function categorizeUpdates(updates) {
                 // Only moved
                 moved.push({ id, before, after, moveInfo });
             }
+        } else if (moveDetection.orderChanged) {
+            // Index changed but it's a passive shift (in LIS) - treat as unmodified if no content changes
+            const contentChanges = changes.filter(c => c.key !== 'parentid' && c.key !== 'index');
+            if (contentChanges.length > 0) {
+                modified.push({ id, before, after, changes: contentChanges });
+            }
+            // If only index changed and it's passive, we skip this node entirely
         } else {
             // Only modified (no movement)
             modified.push({ id, before, after, changes });
@@ -397,11 +511,24 @@ function categorizeUpdates(updates) {
  * console.log(result.deleted); // Deleted nodes
  *
  * @example
- * // With categorization
+ * // With categorization (uses LIS algorithm by default for precise move detection)
  * const result = diff(snapshot1, snapshot2, { categorize: true });
- * console.log(result.moved); // Nodes that were only moved
+ * console.log(result.moved); // Nodes that were only moved (cross-parent or reordered)
  * console.log(result.modified); // Nodes that were only modified
  * console.log(result.movedAndModified); // Nodes that were both moved and modified
+ *
+ * // Check move type
+ * result.moved.forEach(node => {
+ *   if (node.moveInfo.moveType === 'cross-parent') {
+ *     console.log(`${node.id} moved from ${node.moveInfo.fromParent} to ${node.moveInfo.toParent}`);
+ *   } else if (node.moveInfo.moveType === 'reorder') {
+ *     console.log(`${node.id} reordered from index ${node.moveInfo.fromOrder} to ${node.moveInfo.toOrder}`);
+ *   }
+ * });
+ *
+ * @example
+ * // Disable LIS algorithm (fall back to legacy behavior where any index change = move)
+ * const result = diff(snapshot1, snapshot2, { categorize: true, useLIS: false });
  *
  * @example
  * // With custom fieldNames: { topic: 'name' }
@@ -413,13 +540,8 @@ function categorizeUpdates(updates) {
  * const before = jm.get_data('node_tree');
  * // ... make changes ...
  * const after = jm.get_data('node_tree');
- * const result = jm.history.diff(before, after);
- * // fieldNames are automatically applied, no need to specify fields manually
- *
- * @example
- * // Ignore index changes caused by preceding node deletions
- * const result = jm.history.diff(before, after, { ignoreDeletionShift: true });
- * // Now nodes that only change index due to deletion of previous siblings won't be marked as moved
+ * const result = jm.history.diff(before, after, { categorize: true });
+ * // fieldNames are automatically applied, LIS algorithm is used for precise move detection
  */
 export function diff(a, b, opts = {}) {
     const {
@@ -429,7 +551,6 @@ export function diff(a, b, opts = {}) {
         includeStructure = true,
         maxSize = 5000,
         categorize = false,
-        ignoreDeletionShift = false,
     } = opts;
 
     const A = flatten(a, { fields, idKey, childrenKey, includeStructure });
@@ -448,39 +569,6 @@ export function diff(a, b, opts = {}) {
         const nodeA = A.get(id);
         if (!shallowEqual(nodeA, nodeB)) {
             const changes = computeChanges(nodeA, nodeB);
-
-            // Apply ignoreDeletionShift filter
-            if (ignoreDeletionShift && !changes.some(c => c.key === 'parentid')) {
-                const hasIndexChange = changes.some(c => c.key === 'index');
-
-                if (hasIndexChange) {
-                    // Check if this index change is caused by deletion of preceding siblings
-                    const indexChange = changes.find(c => c.key === 'index');
-                    const causedByDeletion = isIndexChangeCausedByDeletion(
-                        A,
-                        B,
-                        id,
-                        nodeA.parentid,
-                        indexChange.before,
-                        indexChange.after
-                    );
-
-                    if (causedByDeletion) {
-                        // Remove index change from the changes array
-                        const filteredChanges = changes.filter(c => c.key !== 'index');
-
-                        // If there are no other changes, skip this update entirely
-                        if (filteredChanges.length === 0) {
-                            continue;
-                        }
-
-                        // Otherwise, update with the filtered changes
-                        changes.length = 0;
-                        changes.push(...filteredChanges);
-                    }
-                }
-            }
-
             updated.push({ id, before: nodeA, after: nodeB, changes });
         }
     }
@@ -503,9 +591,9 @@ export function diff(a, b, opts = {}) {
         deleted.length = d;
     }
 
-    // Categorize updates if requested
+    // Categorize updates if requested (uses LIS algorithm for precise move detection)
     if (categorize && includeStructure) {
-        const categorized = categorizeUpdates(updated);
+        const categorized = categorizeUpdates(updated, A, B);
         return {
             created,
             updated,

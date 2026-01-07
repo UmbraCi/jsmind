@@ -455,4 +455,166 @@ describe('history-diff', () => {
             expect(node3.moveInfo.orderChanged).toBe(true);
         });
     });
+
+    describe('LIS algorithm for precise move detection', () => {
+        it('should NOT mark nodes as moved when deletion causes index shift', () => {
+            // Scenario: Delete node B, C/D/E indices decrease by 1 - this is passive shift
+            const before = {
+                format: 'node_tree',
+                data: {
+                    id: 'root',
+                    topic: 'Root',
+                    children: [
+                        { id: 'A', topic: 'A' }, // index 0
+                        { id: 'B', topic: 'B' }, // index 1 - will be deleted
+                        { id: 'C', topic: 'C' }, // index 2
+                        { id: 'D', topic: 'D' }, // index 3
+                        { id: 'E', topic: 'E' }, // index 4
+                    ],
+                },
+            };
+
+            const after = {
+                format: 'node_tree',
+                data: {
+                    id: 'root',
+                    topic: 'Root',
+                    children: [
+                        { id: 'A', topic: 'A' }, // index 0 (unchanged)
+                        { id: 'C', topic: 'C' }, // index 1 (was 2)
+                        { id: 'D', topic: 'D' }, // index 2 (was 3)
+                        { id: 'E', topic: 'E' }, // index 3 (was 4)
+                    ],
+                },
+            };
+
+            const result = diff(before, after, { categorize: true });
+
+            // B should be deleted
+            expect(result.deleted).toHaveLength(1);
+            expect(result.deleted[0].id).toBe('B');
+
+            // C, D, E should NOT be marked as moved (LIS detects they maintained relative order)
+            expect(result.moved).toHaveLength(0);
+        });
+
+        it('should detect real reorder move even when index changes', () => {
+            // Scenario: D is actively moved to position 1 (between A and B)
+            const before = {
+                format: 'node_tree',
+                data: {
+                    id: 'root',
+                    topic: 'Root',
+                    children: [
+                        { id: 'A', topic: 'A' }, // index 0
+                        { id: 'B', topic: 'B' }, // index 1
+                        { id: 'C', topic: 'C' }, // index 2
+                        { id: 'D', topic: 'D' }, // index 3
+                    ],
+                },
+            };
+
+            const after = {
+                format: 'node_tree',
+                data: {
+                    id: 'root',
+                    topic: 'Root',
+                    children: [
+                        { id: 'A', topic: 'A' }, // index 0 (unchanged)
+                        { id: 'D', topic: 'D' }, // index 1 (was 3) - moved here
+                        { id: 'B', topic: 'B' }, // index 2 (was 1)
+                        { id: 'C', topic: 'C' }, // index 3 (was 2)
+                    ],
+                },
+            };
+
+            const result = diff(before, after, { categorize: true });
+
+            // D should be marked as moved (it's the one that actively moved)
+            // A, B, C form the LIS (their relative order is preserved: A < B < C)
+            expect(result.moved.length).toBe(1);
+            expect(result.moved[0].id).toBe('D');
+            expect(result.moved[0].moveInfo.moveType).toBe('reorder');
+        });
+
+        it('should mark cross-parent move with moveType=cross-parent', () => {
+            const before = {
+                format: 'node_tree',
+                data: {
+                    id: 'root',
+                    topic: 'Root',
+                    children: [
+                        {
+                            id: 'parent1',
+                            topic: 'Parent 1',
+                            children: [{ id: 'child', topic: 'Child' }],
+                        },
+                        { id: 'parent2', topic: 'Parent 2', children: [] },
+                    ],
+                },
+            };
+
+            const after = {
+                format: 'node_tree',
+                data: {
+                    id: 'root',
+                    topic: 'Root',
+                    children: [
+                        { id: 'parent1', topic: 'Parent 1', children: [] },
+                        {
+                            id: 'parent2',
+                            topic: 'Parent 2',
+                            children: [{ id: 'child', topic: 'Child' }],
+                        },
+                    ],
+                },
+            };
+
+            const result = diff(before, after, { categorize: true });
+            expect(result.moved).toHaveLength(1);
+            expect(result.moved[0].moveInfo.moveType).toBe('cross-parent');
+        });
+
+        it('should handle complex scenario: delete + reorder', () => {
+            // Scenario: Delete B, and move E to position 1
+            const before = {
+                format: 'node_tree',
+                data: {
+                    id: 'root',
+                    topic: 'Root',
+                    children: [
+                        { id: 'A', topic: 'A' }, // index 0
+                        { id: 'B', topic: 'B' }, // index 1 - deleted
+                        { id: 'C', topic: 'C' }, // index 2
+                        { id: 'D', topic: 'D' }, // index 3
+                        { id: 'E', topic: 'E' }, // index 4 - moved
+                    ],
+                },
+            };
+
+            const after = {
+                format: 'node_tree',
+                data: {
+                    id: 'root',
+                    topic: 'Root',
+                    children: [
+                        { id: 'A', topic: 'A' }, // index 0
+                        { id: 'E', topic: 'E' }, // index 1 (was 4) - actively moved
+                        { id: 'C', topic: 'C' }, // index 2 (was 2, but B deleted)
+                        { id: 'D', topic: 'D' }, // index 3 (was 3, but B deleted)
+                    ],
+                },
+            };
+
+            const result = diff(before, after, { categorize: true });
+
+            // B should be deleted
+            expect(result.deleted).toHaveLength(1);
+            expect(result.deleted[0].id).toBe('B');
+
+            // E should be the only moved node (LIS = [A, C, D], E is not in LIS)
+            expect(result.moved.length).toBe(1);
+            expect(result.moved[0].id).toBe('E');
+        });
+    });
 });
