@@ -297,20 +297,16 @@ Compare two snapshots and return differences
   - `fields`: Array of fields to compare (default: `['topic', 'data', 'id']`)
   - `includeStructure`: Include structure information (default: `true`)
   - `maxSize`: Maximum result size (default: `5000`)
-  - `categorize`: Categorize updates (default: `false`)
 
 **Returns:**
 ```typescript
 {
-    created: Array,      // Newly created nodes
-    updated: Array,      // Updated nodes
-    deleted: Array,      // Deleted nodes
-    truncated: boolean,  // Whether results were truncated
-    
-    // When categorize=true
-    moved?: Array,              // Nodes that were only moved
-    modified?: Array,           // Nodes that were only modified
-    movedAndModified?: Array    // Nodes that were both moved and modified
+    created: Array,              // Newly created nodes
+    deleted: Array,              // Deleted nodes
+    truncated: boolean,          // Whether results were truncated
+    moved: Array,                // Nodes that were only moved
+    modified: Array,             // Nodes that were only modified
+    movedAndModified: Array      // Nodes that were both moved and modified
 }
 ```
 
@@ -324,16 +320,9 @@ const snapshot2 = jm.history.exportSnapshot();
 
 const diff = jm.history.diff(snapshot1, snapshot2);
 console.log('Created nodes:', diff.created);
-console.log('Updated nodes:', diff.updated);
+console.log('Moved nodes:', diff.moved);
+console.log('Modified nodes:', diff.modified);
 console.log('Deleted nodes:', diff.deleted);
-
-// With categorization
-const diffCategorized = jm.history.diff(snapshot1, snapshot2, { 
-    categorize: true 
-});
-console.log('Only moved:', diffCategorized.moved);
-console.log('Only modified:', diffCategorized.modified);
-console.log('Moved + modified:', diffCategorized.movedAndModified);
 
 // Custom comparison fields
 const diffCustom = jm.history.diff(snapshot1, snapshot2, { 

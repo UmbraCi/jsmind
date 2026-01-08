@@ -47,7 +47,7 @@ const snapshot1 = jm.history.exportSnapshot();
 // ... make changes ...
 const snapshot2 = jm.history.exportSnapshot();
 
-const diff = jm.history.diff(snapshot1, snapshot2, { categorize: true });
+const diff = jm.history.diff(snapshot1, snapshot2);
 console.log('Moved:', diff.moved);
 console.log('Modified:', diff.modified);
 console.log('Created:', diff.created);
@@ -78,28 +78,24 @@ Compares two snapshots and returns detailed differences.
 -   `options`:
     -   `includeStructure`: Include structure fields (default: `true`)
     -   `maxSize`: Maximum result size (default: `5000`)
-    -   `categorize`: Categorize updates into moved/modified/movedAndModified (default: `false`)
 
 **Returns:**
 
 ```typescript
 {
-    created: FlatNode[],      // Newly created nodes
-    updated: UpdatedNode[],   // Updated nodes with change details
-    deleted: FlatNode[],      // Deleted nodes
-    truncated: boolean,       // Whether results were truncated
-
-    // When categorize=true:
-    moved?: MovedNode[],              // Only moved (with moveInfo)
-    modified?: ModifiedNode[],        // Only modified
-    movedAndModified?: MovedAndModifiedNode[]  // Both moved and modified
+    created: FlatNode[],              // Newly created nodes
+    deleted: FlatNode[],              // Deleted nodes
+    truncated: boolean,               // Whether results were truncated
+    moved: MovedNode[],               // Only moved (with moveInfo)
+    modified: ModifiedNode[],         // Only modified
+    movedAndModified: MovedAndModifiedNode[]  // Both moved and modified
 }
 ```
 
 **Example:**
 
 ```javascript
-const result = jm.history.diff(snapshot1, snapshot2, { categorize: true });
+const result = jm.history.diff(snapshot1, snapshot2);
 
 // Check move types
 result.moved.forEach(node => {

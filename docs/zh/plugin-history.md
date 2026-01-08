@@ -291,26 +291,22 @@ console.log('当前索引:', stack.index);
 对比两个快照，返回差异信息
 
 **参数:**
-- `snapshotA`: 第一个快照（变化前）
-- `snapshotB`: 第二个快照（变化后）
+- `snapshotA`: 第一个快照(变化前)
+- `snapshotB`: 第二个快照(变化后)
 - `options`: 可选配置
-  - `fields`: 要对比的字段数组（默认 `['topic', 'data', 'id']`）
-  - `includeStructure`: 是否包含结构信息（默认 `true`）
-  - `maxSize`: 最大结果数量（默认 `5000`）
-  - `categorize`: 是否分类更新（默认 `false`）
+  - `fields`: 要对比的字段数组(默认 `['topic', 'data', 'id']`)
+  - `includeStructure`: 是否包含结构信息(默认 `true`)
+  - `maxSize`: 最大结果数量(默认 `5000`)
 
 **返回值:**
 ```typescript
 {
-    created: Array,      // 新增的节点
-    updated: Array,      // 更新的节点
-    deleted: Array,      // 删除的节点
-    truncated: boolean,  // 是否被截断
-    
-    // 当 categorize=true 时
-    moved?: Array,              // 仅移动的节点
-    modified?: Array,           // 仅修改的节点
-    movedAndModified?: Array    // 既移动又修改的节点
+    created: Array,              // 新增的节点
+    deleted: Array,              // 删除的节点
+    truncated: boolean,          // 是否被截断
+    moved: Array,                // 仅移动的节点
+    modified: Array,             // 仅修改的节点
+    movedAndModified: Array      // 既移动又修改的节点
 }
 ```
 
@@ -324,16 +320,9 @@ const snapshot2 = jm.history.exportSnapshot();
 
 const diff = jm.history.diff(snapshot1, snapshot2);
 console.log('新增节点:', diff.created);
-console.log('更新节点:', diff.updated);
+console.log('移动节点:', diff.moved);
+console.log('修改节点:', diff.modified);
 console.log('删除节点:', diff.deleted);
-
-// 使用分类
-const diffCategorized = jm.history.diff(snapshot1, snapshot2, { 
-    categorize: true 
-});
-console.log('仅移动:', diffCategorized.moved);
-console.log('仅修改:', diffCategorized.modified);
-console.log('移动+修改:', diffCategorized.movedAndModified);
 
 // 自定义对比字段
 const diffCustom = jm.history.diff(snapshot1, snapshot2, { 

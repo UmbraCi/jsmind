@@ -73,12 +73,11 @@ import { deepEqual } from 'fast-equals';
 /**
  * @typedef {Object} DiffResult
  * @property {FlatNode[]} created - Newly created nodes
- * @property {UpdatedNode[]} updated - Updated nodes (all changes)
  * @property {FlatNode[]} deleted - Deleted nodes
  * @property {boolean} truncated - Whether results were truncated due to maxSize
- * @property {MovedNode[]} [moved] - Nodes that were only moved (when categorize=true)
- * @property {ModifiedNode[]} [modified] - Nodes that were only modified (when categorize=true)
- * @property {MovedAndModifiedNode[]} [movedAndModified] - Nodes that were both moved and modified (when categorize=true)
+ * @property {MovedNode[]} moved - Nodes that were only moved
+ * @property {ModifiedNode[]} modified - Nodes that were only modified
+ * @property {MovedAndModifiedNode[]} movedAndModified - Nodes that were both moved and modified
  */
 
 /**
@@ -103,7 +102,6 @@ import { deepEqual } from 'fast-equals';
  *                                     Note: When using jm.history.diff(), this is automatically handled.
  * @property {boolean} [includeStructure] - Whether to include parentid and index in comparison. Defaults to true
  * @property {number} [maxSize] - Maximum number of diff results. Defaults to 5000
- * @property {boolean} [categorize] - Whether to categorize updates into moved/modified/movedAndModified. Defaults to false
  */
 
 function isFormat(obj) {
@@ -493,6 +491,7 @@ function categorizeUpdates(updates, beforeMap, afterMap) {
 
 /**
  * Compute diff between two snapshots.
+ * Always categorizes updates into moved/modified/movedAndModified using LIS algorithm for precise move detection.
  *
  * Note: When using custom fieldNames, make sure to pass the correct field names in opts.fields.
  * For example, if you configured fieldNames: { topic: 'name' }, you should pass fields: ['name', 'data', 'id'].
@@ -501,18 +500,13 @@ function categorizeUpdates(updates, beforeMap, afterMap) {
  * @param {NodeTreeFormat|NodeTreeData} a - First snapshot (before)
  * @param {NodeTreeFormat|NodeTreeData} b - Second snapshot (after)
  * @param {DiffOptions} [opts] - Diff options
- * @returns {DiffResult} Diff result with created, updated, deleted nodes, and optionally categorized updates
+ * @returns {DiffResult} Diff result with created, deleted, moved, modified, and movedAndModified nodes
  *
  * @example
  * // Basic usage with default fieldNames
  * const result = diff(snapshot1, snapshot2);
  * console.log(result.created); // Newly created nodes
- * console.log(result.updated); // Updated nodes with changes
  * console.log(result.deleted); // Deleted nodes
- *
- * @example
- * // With categorization (uses LIS algorithm by default for precise move detection)
- * const result = diff(snapshot1, snapshot2, { categorize: true });
  * console.log(result.moved); // Nodes that were only moved (cross-parent or reordered)
  * console.log(result.modified); // Nodes that were only modified
  * console.log(result.movedAndModified); // Nodes that were both moved and modified
@@ -527,10 +521,6 @@ function categorizeUpdates(updates, beforeMap, afterMap) {
  * });
  *
  * @example
- * // Disable LIS algorithm (fall back to legacy behavior where any index change = move)
- * const result = diff(snapshot1, snapshot2, { categorize: true, useLIS: false });
- *
- * @example
  * // With custom fieldNames: { topic: 'name' }
  * const result = diff(snapshot1, snapshot2, { fields: ['name', 'data', 'id'] });
  * // Now the diff will correctly detect changes in the 'name' field
@@ -540,18 +530,11 @@ function categorizeUpdates(updates, beforeMap, afterMap) {
  * const before = jm.get_data('node_tree');
  * // ... make changes ...
  * const after = jm.get_data('node_tree');
- * const result = jm.history.diff(before, after, { categorize: true });
+ * const result = jm.history.diff(before, after);
  * // fieldNames are automatically applied, LIS algorithm is used for precise move detection
  */
 export function diff(a, b, opts = {}) {
-    const {
-        fields,
-        idKey,
-        childrenKey,
-        includeStructure = true,
-        maxSize = 5000,
-        categorize = false,
-    } = opts;
+    const { fields, idKey, childrenKey, includeStructure = true, maxSize = 5000 } = opts;
 
     const A = flatten(a, { fields, idKey, childrenKey, includeStructure });
     const B = flatten(b, { fields, idKey, childrenKey, includeStructure });
@@ -591,27 +574,12 @@ export function diff(a, b, opts = {}) {
         deleted.length = d;
     }
 
-    // Categorize updates if requested (uses LIS algorithm for precise move detection)
-    if (categorize && includeStructure) {
+    // Always categorize updates using LIS algorithm for precise move detection
+    if (includeStructure) {
         const categorized = categorizeUpdates(updated, A, B);
-
-        // Build a Set of node IDs that are in moved or movedAndModified for O(1) lookup
-        const realMoveIdSet = new Set([
-            ...categorized.moved.map(m => m.id),
-            ...categorized.movedAndModified.map(m => m.id),
-        ]);
-
-        // Filter out passive shift nodes from updated
-        // A passive shift is a node that only has index change and is not a real move
-        const filteredUpdated = updated.filter(u => {
-            const isPassiveShift =
-                u.changes.length === 1 && u.changes[0].key === 'index' && !realMoveIdSet.has(u.id);
-            return !isPassiveShift;
-        });
 
         return {
             created,
-            updated: filteredUpdated,
             deleted,
             truncated,
             moved: categorized.moved,
@@ -620,5 +588,13 @@ export function diff(a, b, opts = {}) {
         };
     }
 
-    return { created, updated, deleted, truncated };
+    // If includeStructure is false, all updates are treated as modifications
+    return {
+        created,
+        deleted,
+        moved: [],
+        modified: updated,
+        movedAndModified: [],
+        truncated,
+    };
 }

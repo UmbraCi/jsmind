@@ -149,10 +149,10 @@ describe('history-diff', () => {
             expect(result.deleted[0].id).toBe('node3');
         });
 
-        it('should detect updated nodes', () => {
+        it('should detect modified nodes', () => {
             const result = diff(simpleTree, modifiedTree);
-            expect(result.updated.length).toBeGreaterThan(0);
-            const rootUpdate = result.updated.find(u => u.id === 'root');
+            expect(result.modified.length).toBeGreaterThan(0);
+            const rootUpdate = result.modified.find(u => u.id === 'root');
             expect(rootUpdate).toBeDefined();
             expect(rootUpdate.changes).toEqual(
                 expect.arrayContaining([
@@ -162,9 +162,9 @@ describe('history-diff', () => {
             );
         });
 
-        it('should include change details in updated nodes', () => {
+        it('should include change details in modified nodes', () => {
             const result = diff(simpleTree, modifiedTree);
-            const rootUpdate = result.updated.find(u => u.id === 'root');
+            const rootUpdate = result.modified.find(u => u.id === 'root');
             const topicChange = rootUpdate.changes.find(c => c.key === 'topic');
             expect(topicChange.before).toBe('Root');
             expect(topicChange.after).toBe('Root Modified');
@@ -172,7 +172,12 @@ describe('history-diff', () => {
 
         it('should respect maxSize option', () => {
             const result = diff(simpleTree, modifiedTree, { maxSize: 2 });
-            const total = result.created.length + result.updated.length + result.deleted.length;
+            const total =
+                result.created.length +
+                result.moved.length +
+                result.modified.length +
+                result.movedAndModified.length +
+                result.deleted.length;
             expect(total).toBeLessThanOrEqual(2);
             expect(result.truncated).toBe(true);
         });
@@ -184,12 +189,14 @@ describe('history-diff', () => {
 
         it('should use default fields when not specified', () => {
             const result = diff(simpleTree, modifiedTree);
-            expect(result.updated.length).toBeGreaterThan(0);
+            const totalUpdates =
+                result.moved.length + result.modified.length + result.movedAndModified.length;
+            expect(totalUpdates).toBeGreaterThan(0);
         });
 
         it('should respect custom fields option', () => {
             const result = diff(simpleTree, modifiedTree, { fields: ['id', 'topic'] });
-            const rootUpdate = result.updated.find(u => u.id === 'root');
+            const rootUpdate = result.modified.find(u => u.id === 'root');
             if (rootUpdate) {
                 const hasDataChange = rootUpdate.changes.some(c => c.key === 'data');
                 expect(hasDataChange).toBe(false);
@@ -197,16 +204,9 @@ describe('history-diff', () => {
         });
     });
 
-    describe('diff() with categorize option', () => {
-        it('should not categorize by default', () => {
+    describe('diff() categorization', () => {
+        it('should always categorize results', () => {
             const result = diff(simpleTree, modifiedTree);
-            expect(result.moved).toBeUndefined();
-            expect(result.modified).toBeUndefined();
-            expect(result.movedAndModified).toBeUndefined();
-        });
-
-        it('should categorize when categorize=true', () => {
-            const result = diff(simpleTree, modifiedTree, { categorize: true });
             expect(result.moved).toBeDefined();
             expect(result.modified).toBeDefined();
             expect(result.movedAndModified).toBeDefined();
@@ -236,7 +236,7 @@ describe('history-diff', () => {
                 },
             };
 
-            const result = diff(simpleTree, treeWithMove, { categorize: true });
+            const result = diff(simpleTree, treeWithMove);
             expect(result.moved.length).toBeGreaterThan(0);
             const movedNode = result.moved.find(m => m.id === 'node1-1');
             expect(movedNode).toBeDefined();
@@ -244,7 +244,7 @@ describe('history-diff', () => {
         });
 
         it('should detect modified nodes (no movement)', () => {
-            const result = diff(simpleTree, modifiedTree, { categorize: true });
+            const result = diff(simpleTree, modifiedTree);
             expect(result.modified.length).toBeGreaterThan(0);
         });
 
@@ -272,7 +272,7 @@ describe('history-diff', () => {
                 },
             };
 
-            const result = diff(simpleTree, treeWithMoveAndModify, { categorize: true });
+            const result = diff(simpleTree, treeWithMoveAndModify);
             expect(result.movedAndModified.length).toBeGreaterThan(0);
             const movedAndModified = result.movedAndModified.find(m => m.id === 'node1-1');
             expect(movedAndModified).toBeDefined();
@@ -290,14 +290,18 @@ describe('history-diff', () => {
             };
             const result = diff(emptyTree, emptyTree);
             expect(result.created).toHaveLength(0);
-            expect(result.updated).toHaveLength(0);
+            expect(result.moved).toHaveLength(0);
+            expect(result.modified).toHaveLength(0);
+            expect(result.movedAndModified).toHaveLength(0);
             expect(result.deleted).toHaveLength(0);
         });
 
         it('should handle identical trees', () => {
             const result = diff(simpleTree, simpleTree);
             expect(result.created).toHaveLength(0);
-            expect(result.updated).toHaveLength(0);
+            expect(result.moved).toHaveLength(0);
+            expect(result.modified).toHaveLength(0);
+            expect(result.movedAndModified).toHaveLength(0);
             expect(result.deleted).toHaveLength(0);
         });
 
@@ -308,7 +312,9 @@ describe('history-diff', () => {
             };
             const result = diff(rootOnly, rootOnly);
             expect(result.created).toHaveLength(0);
-            expect(result.updated).toHaveLength(0);
+            expect(result.moved).toHaveLength(0);
+            expect(result.modified).toHaveLength(0);
+            expect(result.movedAndModified).toHaveLength(0);
             expect(result.deleted).toHaveLength(0);
         });
 
@@ -414,7 +420,7 @@ describe('history-diff', () => {
                 },
             };
 
-            const result = diff(before, after, { categorize: true });
+            const result = diff(before, after);
             expect(result.moved).toHaveLength(1);
             expect(result.moved[0].id).toBe('child');
             expect(result.moved[0].moveInfo.fromParent).toBe('parent1');
@@ -449,7 +455,7 @@ describe('history-diff', () => {
                 },
             };
 
-            const result = diff(before, after, { categorize: true });
+            const result = diff(before, after);
             expect(result.moved.length).toBeGreaterThan(0);
             const node3 = result.moved.find(n => n.id === 'node3');
             expect(node3.moveInfo.orderChanged).toBe(true);
@@ -488,7 +494,7 @@ describe('history-diff', () => {
                 },
             };
 
-            const result = diff(before, after, { categorize: true });
+            const result = diff(before, after);
 
             // B should be deleted
             expect(result.deleted).toHaveLength(1);
@@ -528,7 +534,7 @@ describe('history-diff', () => {
                 },
             };
 
-            const result = diff(before, after, { categorize: true });
+            const result = diff(before, after);
 
             // D should be marked as moved (it's the one that actively moved)
             // A, B, C form the LIS (their relative order is preserved: A < B < C)
@@ -570,7 +576,7 @@ describe('history-diff', () => {
                 },
             };
 
-            const result = diff(before, after, { categorize: true });
+            const result = diff(before, after);
             expect(result.moved).toHaveLength(1);
             expect(result.moved[0].moveInfo.moveType).toBe('cross-parent');
         });
@@ -606,7 +612,7 @@ describe('history-diff', () => {
                 },
             };
 
-            const result = diff(before, after, { categorize: true });
+            const result = diff(before, after);
 
             // B should be deleted
             expect(result.deleted).toHaveLength(1);
