@@ -100,9 +100,13 @@ const result = jm.history.diff(snapshot1, snapshot2);
 // Check move types
 result.moved.forEach(node => {
     if (node.moveInfo.moveType === 'cross-parent') {
-        console.log(`${node.id} moved from ${node.moveInfo.fromParent} to ${node.moveInfo.toParent}`);
+        console.log(
+            `${node.id} moved from ${node.moveInfo.fromParent} to ${node.moveInfo.toParent}`
+        );
     } else if (node.moveInfo.moveType === 'reorder') {
-        console.log(`${node.id} reordered from index ${node.moveInfo.fromOrder} to ${node.moveInfo.toOrder}`);
+        console.log(
+            `${node.id} reordered from index ${node.moveInfo.fromOrder} to ${node.moveInfo.toOrder}`
+        );
     }
 });
 ```
@@ -111,10 +115,10 @@ result.moved.forEach(node => {
 
 The algorithm uses **Longest Increasing Subsequence (LIS)** to precisely detect which nodes were actively moved:
 
-| Scenario | Detection |
-|----------|-----------|
-| Node dragged to different parent | `moveType: 'cross-parent'` |
-| Node reordered within same parent | `moveType: 'reorder'` |
+| Scenario                              | Detection                               |
+| ------------------------------------- | --------------------------------------- |
+| Node dragged to different parent      | `moveType: 'cross-parent'`              |
+| Node reordered within same parent     | `moveType: 'reorder'`                   |
 | Index changed due to sibling deletion | **Not marked as moved** (passive shift) |
 
 ```javascript
@@ -129,13 +133,13 @@ The algorithm uses **Longest Increasing Subsequence (LIS)** to precisely detect 
 
 ```typescript
 interface MoveInfo {
-    moveType: 'cross-parent' | 'reorder';  // Type of move
-    parentChanged: boolean;                 // Whether parent changed
-    orderChanged: boolean;                  // Whether order changed
-    fromParent: string | null;             // Original parent ID
-    toParent: string | null;               // New parent ID
-    fromOrder: number;                      // Original index
-    toOrder: number;                        // New index
+    moveType: 'cross-parent' | 'reorder'; // Type of move
+    parentChanged: boolean; // Whether parent changed
+    orderChanged: boolean; // Whether order changed
+    fromParent: string | null; // Original parent ID
+    toParent: string | null; // New parent ID
+    fromOrder: number; // Original index
+    toOrder: number; // New index
 }
 ```
 

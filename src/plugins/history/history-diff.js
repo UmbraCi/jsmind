@@ -85,6 +85,8 @@ import { deepEqual } from 'fast-equals';
  * @property {string[]} [fields] - Array of field names to include. Defaults to ['topic', 'data', 'id'].
  *                                  When using custom fieldNames (e.g., { id: 'key', topic: 'name' }), this should be
  *                                  ['name', 'data', 'key'] to match the actual field names in the data.
+ * @property {string[]} [excludeFields] - Array of field names to exclude from diff comparison. These fields will be ignored
+ *                                        even if they exist in the node data. Useful for filtering out temporary or UI-only fields.
  * @property {string} [idKey] - The field name to use as the node ID. Defaults to 'id'.
  *                               When using custom fieldNames (e.g., { id: 'key' }), this should be 'key'.
  * @property {string} [childrenKey] - The field name to use for children array. Defaults to 'children'.
@@ -96,6 +98,8 @@ import { deepEqual } from 'fast-equals';
  * @typedef {Object} DiffOptions
  * @property {string[]} [fields] - Array of field names to compare. Defaults to ['topic', 'data', 'id'].
  *                                  Note: When using jm.history.diff(), this is automatically handled.
+ * @property {string[]} [excludeFields] - Array of field names to exclude from diff comparison. These fields will be ignored
+ *                                        even if they exist in the node data. Useful for filtering out temporary or UI-only fields.
  * @property {string} [idKey] - The field name to use as the node ID. Defaults to 'id'.
  *                               Note: When using jm.history.diff(), this is automatically handled.
  * @property {string} [childrenKey] - The field name to use for children array. Defaults to 'children'.
@@ -137,6 +141,7 @@ export function flatten(tree, opts) {
     const root = getRootData(tree);
     // Default fields: ['topic', 'data', 'id'] when not specified
     const fields = opts && Array.isArray(opts.fields) ? opts.fields : ['topic', 'data', 'id'];
+    const excludeFields = opts && Array.isArray(opts.excludeFields) ? opts.excludeFields : [];
     const idKey = opts && opts.idKey ? opts.idKey : 'id';
     const childrenKey = opts && opts.childrenKey ? opts.childrenKey : 'children';
     const includeStructure = !opts || opts.includeStructure !== false;
@@ -161,6 +166,9 @@ export function flatten(tree, opts) {
             'isroot',
         ]);
 
+        // Create a Set for excluded fields for O(1) lookup
+        const excludeSet = new Set(excludeFields);
+
         // Check if 'data' field is requested
         const includeData = fields.includes('data');
 
@@ -172,7 +180,11 @@ export function flatten(tree, opts) {
                 const dataObj = {};
                 let hasData = false;
                 for (const nodeKey in node) {
-                    if (!standardFields.has(nodeKey) && !fields.includes(nodeKey)) {
+                    if (
+                        !standardFields.has(nodeKey) &&
+                        !fields.includes(nodeKey) &&
+                        !excludeSet.has(nodeKey)
+                    ) {
                         dataObj[nodeKey] = node[nodeKey];
                         hasData = true;
                     }
@@ -180,7 +192,7 @@ export function flatten(tree, opts) {
                 if (hasData) {
                     out.data = dataObj;
                 }
-            } else if (k in node && k !== idKey) {
+            } else if (k in node && k !== idKey && !excludeSet.has(k)) {
                 // Avoid duplicating id field
                 out[k] = node[k];
             }
@@ -534,10 +546,17 @@ function categorizeUpdates(updates, beforeMap, afterMap) {
  * // fieldNames are automatically applied, LIS algorithm is used for precise move detection
  */
 export function diff(a, b, opts = {}) {
-    const { fields, idKey, childrenKey, includeStructure = true, maxSize = 5000 } = opts;
+    const {
+        fields,
+        excludeFields,
+        idKey,
+        childrenKey,
+        includeStructure = true,
+        maxSize = 5000,
+    } = opts;
 
-    const A = flatten(a, { fields, idKey, childrenKey, includeStructure });
-    const B = flatten(b, { fields, idKey, childrenKey, includeStructure });
+    const A = flatten(a, { fields, excludeFields, idKey, childrenKey, includeStructure });
+    const B = flatten(b, { fields, excludeFields, idKey, childrenKey, includeStructure });
     /** @type {any[]} */ const created = [];
     /** @type {{id:string,before:any,after:any,changes:{key:string,before:any,after:any}[]}[]} */ const updated =
         [];

@@ -6,8 +6,8 @@
  *   https://github.com/UmbraCi/jsmind/
  */
 
-import {EnhancedPlugin} from '../jsmind.enhanced-plugin.js';
-import {EventType, logger} from '../jsmind.common.js';
+import { EnhancedPlugin } from '../jsmind.enhanced-plugin.js';
+import { EventType, logger } from '../jsmind.common.js';
 
 /**
  * Default options for multi-select plugin.
@@ -197,9 +197,10 @@ class MultiSelectCore {
             return;
         }
 
-        const includeDesc = (opts && typeof opts.include_descendants !== 'undefined')
-            ? !!opts.include_descendants
-            : this.options.include_descendants !== false; // default true
+        const includeDesc =
+            opts && typeof opts.include_descendants !== 'undefined'
+                ? !!opts.include_descendants
+                : this.options.include_descendants !== false; // default true
 
         this._ensure_selection_state();
         // If node is not selected or not in multi mode, select subtree
@@ -214,13 +215,14 @@ class MultiSelectCore {
                 nodes = [nodeObj];
             }
 
-            const added = this._append_selection(nodes, {focusNode: nodeObj});
+            const added = this._append_selection(nodes, { focusNode: nodeObj });
             this._ensure_selection_state();
-            const ancestors = nodeObj.parent && !this.jm.mind.selected_nodes.has(nodeObj.parent)
-                ? this._ensure_ancestor_selection([nodeObj], nodeObj, {
-                    requireAncestorChainSelected: true,
-                })
-                : [];
+            const ancestors =
+                nodeObj.parent && !this.jm.mind.selected_nodes.has(nodeObj.parent)
+                    ? this._ensure_ancestor_selection([nodeObj], nodeObj, {
+                          requireAncestorChainSelected: true,
+                      })
+                    : [];
             const allAdded = added.concat(ancestors);
 
             if (allAdded.length) {
@@ -278,7 +280,7 @@ class MultiSelectCore {
      * @param {string} payload.evt - Event type
      */
     _handle_node_click(payload) {
-        const {e, node, element} = payload;
+        const { e, node, element } = payload;
         if (!node || !element) {
             return;
         }
@@ -321,7 +323,7 @@ class MultiSelectCore {
                         nodes = [nodeObj];
                     }
 
-                    const added = this._append_selection(nodes, {focusNode: nodeObj});
+                    const added = this._append_selection(nodes, { focusNode: nodeObj });
                     if (added.length) {
                         this.jm.mind.selected = nodeObj;
                         this._last_selected_node = nodeObj;
@@ -500,7 +502,11 @@ class MultiSelectCore {
             this._ensure_selection_state();
         }
 
-        if (!this.jm.mind || !this.jm.mind.selected_nodes || this.jm.mind.selected_nodes.size === 0) {
+        if (
+            !this.jm.mind ||
+            !this.jm.mind.selected_nodes ||
+            this.jm.mind.selected_nodes.size === 0
+        ) {
             this._clear_all_selected_nodes_view();
             return [];
         }
@@ -602,7 +608,7 @@ class MultiSelectCore {
         }
 
         const focus = focusNode || nodes[nodes.length - 1];
-        return this._append_selection(added, {focusNode: focus});
+        return this._append_selection(added, { focusNode: focus });
     }
 
     /**
@@ -898,8 +904,8 @@ export class MultiSelectPlugin extends EnhancedPlugin {
     /**
      * @param {{ jm: import('../jsmind.js').default, pluginOpt: object }} params
      */
-    constructor({jm, pluginOpt}) {
-        super({jm, pluginOpt});
+    constructor({ jm, pluginOpt }) {
+        super({ jm, pluginOpt });
 
         const options = Object.assign({}, DEFAULT_OPTIONS, pluginOpt || {});
         this.options = options;
@@ -941,7 +947,7 @@ export class MultiSelectPlugin extends EnhancedPlugin {
         // Patch core selection APIs to route through plugin to avoid duplicate events
         this._original_select_node = jm.select_node.bind(jm);
         this._original_select_clear = jm.select_clear.bind(jm);
-        jm.select_node = (node) => {
+        jm.select_node = node => {
             // Route based on runtime gate
             if (plugin._enabled) return plugin._core.select_node(node);
             return plugin._original_select_node(node);
@@ -1056,12 +1062,12 @@ export class MultiSelectPlugin extends EnhancedPlugin {
             },
             getOptions: () => {
                 const base = plugin._core ? plugin._core.options : plugin.options;
-                return Object.assign({}, base, {enable_multi_select: plugin._enabled});
+                return Object.assign({}, base, { enable_multi_select: plugin._enabled });
             },
             enable: () => plugin.setEnabled(true),
             disable: () => plugin.setEnabled(false),
-            setEnabled: (flag) => plugin.setEnabled(flag),
-            setOptions: (partial) => plugin.setOptions(partial),
+            setEnabled: flag => plugin.setEnabled(flag),
+            setOptions: partial => plugin.setOptions(partial),
         };
 
         Object.defineProperty(jm, 'multiSelect', {
@@ -1156,6 +1162,5 @@ export class MultiSelectPlugin extends EnhancedPlugin {
 }
 
 // Export for compatibility
-export {MultiSelectCore};
+export { MultiSelectCore };
 export default MultiSelectPlugin;
-
