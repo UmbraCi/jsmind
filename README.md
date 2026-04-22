@@ -62,11 +62,11 @@ jm.show({
         <link
             type="text/css"
             rel="stylesheet"
-            href="//cdn.jsdelivr.net/npm/jsmind@0.9.0/style/jsmind.css"
+            href="//cdn.jsdelivr.net/npm/jsmind@0.9.1/style/jsmind.css"
         />
         <script
             type="text/javascript"
-            src="//cdn.jsdelivr.net/npm/jsmind@0.9.0/es6/jsmind.js"
+            src="//cdn.jsdelivr.net/npm/jsmind@0.9.1/es6/jsmind.js"
         ></script>
     </head>
     <body>
