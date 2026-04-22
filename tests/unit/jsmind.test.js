@@ -32,7 +32,9 @@ test('class alias', () => {
     expect(jm.event_type).not.toBeUndefined();
     expect(jm.$).not.toBeUndefined();
     expect(jm.plugin).not.toBeUndefined();
-    expect(jm.register_plugin).not.toBeUndefined();
+    expect(jm.plugin_base).not.toBeUndefined();
+    expect(jm.usePlugin).not.toBeUndefined();
+    expect(jm.hasPlugin).not.toBeUndefined();
     expect(jm.util).not.toBeUndefined();
 });
 

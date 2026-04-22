@@ -335,6 +335,39 @@ export class Mind {
         return true;
     }
     /**
+     * Change a node id while preserving object references.
+     * @param {string} old_id
+     * @param {string} new_id
+     * @returns {boolean}
+     */
+    change_node_id(old_id, new_id) {
+        if (!old_id || !new_id) {
+            logger.error('invalid node id');
+            return false;
+        }
+        if (old_id === new_id) {
+            logger.warn('nothing changed');
+            return true;
+        }
+        const node = this.get_node(old_id);
+        if (!node) {
+            logger.error('the node[id=' + old_id + '] can not be found.');
+            return false;
+        }
+        if (node.isroot) {
+            logger.error('fail, can not change root node id');
+            return false;
+        }
+        if (new_id in this.nodes) {
+            logger.error("fail, the node id '" + new_id + "' has been already exist.");
+            return false;
+        }
+        delete this.nodes[old_id];
+        node.id = new_id;
+        this.nodes[new_id] = node;
+        return true;
+    }
+    /**
      * Put node into the map if id is not taken.
      * @param {Node} node
      * @returns {boolean}

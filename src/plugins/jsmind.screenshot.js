@@ -8,6 +8,7 @@
 
 import jsMind from '@umbraci/jsmind';
 import domtoimage from 'dom-to-image';
+import { Plugin } from '../jsmind.plugin.js';
 
 if (!jsMind) {
     throw new Error('jsMind is not defined');
@@ -213,17 +214,30 @@ export class JmScreenshot {
 }
 
 /**
- * Screenshot plugin registration.
- * @type {import('../jsmind.plugin.js').Plugin<Partial<ScreenshotOptions>>}
+ * Screenshot plugin for unified plugin system.
  */
-export const screenshot_plugin = new jsMind.plugin('screenshot', function (jm, options) {
-    var jmss = new JmScreenshot(jm, options);
-    jm.screenshot = jmss;
-    jm.shoot = function () {
-        jmss.shoot();
-    };
-});
+export class ScreenshotPlugin extends Plugin {
+    static instanceName = 'screenshot';
+    static preload = false;
 
-jsMind.register_plugin(screenshot_plugin);
+    /**
+     * @param {{ jm: import('../jsmind.js').default, pluginOpt: Partial<ScreenshotOptions> }} params
+     */
+    constructor({ jm, pluginOpt }) {
+        super({ jm, pluginOpt });
+        this.screenshot = new JmScreenshot(jm, pluginOpt);
+        jm.screenshot = this.screenshot;
+        jm.shoot = () => {
+            this.screenshot.shoot();
+        };
+    }
+
+    beforePluginRemove() {
+        delete this.jm.shoot;
+        delete this.jm.screenshot;
+    }
+}
+
+jsMind.usePlugin(ScreenshotPlugin);
 
 export default JmScreenshot;

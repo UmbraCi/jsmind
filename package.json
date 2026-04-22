@@ -34,10 +34,10 @@
     ],
     "scripts": {
         "server": "http-server",
-        "prebuild": "node scripts/sync-plugins.mjs",
+        "sync-plugins": "node scripts/sync-plugins.mjs",
+        "prebuild": "npm run sync-plugins",
         "build": "rollup -c .config/rollup.config.js",
-        "prebuild-types": "node scripts/sync-plugins.mjs",
-        "build-types": "npx -p typescript tsc -p types/tsconfig.declaration.json",
+        "build-types": "npm run sync-plugins && npx -p typescript tsc -p types/tsconfig.declaration.json",
         "test": "NODE_OPTIONS=--experimental-vm-modules jest tests/unit",
         "test-es6": "NODE_OPTIONS=--experimental-vm-modules jest tests/unit",
         "test-types": "NODE_OPTIONS=--experimental-vm-modules jest tests/types",

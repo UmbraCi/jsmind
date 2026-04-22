@@ -13,7 +13,7 @@ import type jsMind from './jsmind.js';
  */
 export interface PluginDescriptor {
     /** Plugin class */
-    PluginClass: typeof EnhancedPlugin;
+    PluginClass: typeof Plugin;
     /** Plugin instance name */
     instanceName: string;
     /** Whether to preload */
@@ -21,19 +21,19 @@ export interface PluginDescriptor {
     /** Plugin options */
     pluginOpt: Record<string, any>;
     /** Plugin instance (after initialization) */
-    instance: EnhancedPlugin | null;
+    instance: Plugin | null;
 }
 
 /**
- * Enhanced Plugin Manager
- * Manages the lifecycle of enhanced plugins with synchronous initialization,
+ * Plugin Manager
+ * Manages plugin lifecycle with synchronous initialization,
  * preload support, and lifecycle hooks.
  */
-export class EnhancedPluginManager {
+export class PluginManager {
     /** jsMind instance */
     jm: jsMind;
     /** Plugin instances map */
-    plugins: Map<string, EnhancedPlugin>;
+    plugins: Map<string, Plugin>;
 
     /**
      * Create plugin manager
@@ -55,7 +55,7 @@ export class EnhancedPluginManager {
      * Remove a plugin
      * @param PluginClass - Plugin class
      */
-    removePlugin(PluginClass: typeof EnhancedPlugin): void;
+    removePlugin(PluginClass: typeof Plugin): void;
 
     /**
      * Destroy all plugins
@@ -67,14 +67,14 @@ export class EnhancedPluginManager {
      * @param instanceName - Plugin instance name
      * @returns Plugin instance or undefined
      */
-    getPlugin(instanceName: string): EnhancedPlugin | undefined;
+    getPlugin(instanceName: string): Plugin | undefined;
 }
 
 /**
- * Enhanced Plugin Base Class
- * Provides standard interface for enhanced plugins
+ * Plugin Base Class
+ * Provides standard plugin interface.
  */
-export class EnhancedPlugin {
+export class Plugin {
     /**
      * Plugin instance name (must be defined by subclass)
      */
@@ -112,25 +112,25 @@ export class EnhancedPlugin {
 }
 
 /**
- * Extend jsMind with enhanced plugin system
+ * Extend jsMind with plugin system
  */
 declare module './jsmind.js' {
     export default interface jsMind {
-        /** Enhanced plugin manager */
-        enhancedPluginManager: EnhancedPluginManager;
+        /** Plugin manager */
+        pluginManager: PluginManager;
 
         /**
-         * Remove an enhanced plugin
+         * Remove a plugin
          * @param PluginClass - Plugin class
          */
-        removePlugin(PluginClass: typeof EnhancedPlugin): void;
+        removePlugin(PluginClass: typeof Plugin): void;
 
         /**
-         * Get an enhanced plugin instance
+         * Get a plugin instance
          * @param instanceName - Plugin instance name
          * @returns Plugin instance or undefined
          */
-        getPlugin(instanceName: string): EnhancedPlugin | undefined;
+        getPlugin(instanceName: string): Plugin | undefined;
 
         /**
          * Destroy the jsMind instance and clean up resources
@@ -139,28 +139,28 @@ declare module './jsmind.js' {
     }
 
     namespace jsMind {
-        /** Enhanced plugin base class */
-        export const enhanced_plugin: typeof EnhancedPlugin;
+        /** Plugin base class */
+        export const plugin_base: typeof Plugin;
 
-        /** Enhanced plugin list */
-        export const enhancedPluginList: PluginDescriptor[];
+        /** Plugin list */
+        export const pluginList: PluginDescriptor[];
 
         /**
-         * Register an enhanced plugin
+         * Register a plugin
          * @param PluginClass - Plugin class
          * @param options - Plugin options
          * @returns jsMind class for chaining
          */
         export function usePlugin(
-            PluginClass: typeof EnhancedPlugin,
+            PluginClass: typeof Plugin,
             options?: Record<string, any>
         ): typeof jsMind;
 
         /**
-         * Check if an enhanced plugin is registered
+         * Check whether a plugin is registered.
          * @param PluginClass - Plugin class
          * @returns True if registered
          */
-        export function hasEnhancedPlugin(PluginClass: typeof EnhancedPlugin): boolean;
+        export function hasPlugin(PluginClass: typeof Plugin): boolean;
     }
 }

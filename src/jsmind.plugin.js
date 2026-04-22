@@ -6,59 +6,184 @@
  *   https://github.com/UmbraCi/jsmind/
  */
 
-import { $ } from './jsmind.dom.js';
-
-/** @type {{ plugins: Array<Plugin<object>> }} */
-const plugin_data = {
-    plugins: [],
-};
+import { logger } from './jsmind.common.js';
 
 /**
- * Register a plugin instance.
- * @param {Plugin<object>} plugin
+ * Plugin Manager
+ * Manages plugin lifecycle with synchronous initialization,
+ * preload support, and lifecycle hooks.
  */
-export function register(plugin) {
-    if (!(plugin instanceof Plugin)) {
-        throw new Error('can not register plugin, it is not an instance of Plugin');
+export class PluginManager {
+    /**
+     * @param {import('./jsmind.js').default} jm - jsMind instance
+     */
+    constructor(jm) {
+        this.jm = jm;
+        /** @type {Map<string, Plugin>} */
+        this.plugins = new Map();
     }
-    if (plugin_data.plugins.map(p => p.name).includes(plugin.name)) {
-        throw new Error('can not register plugin ' + plugin.name + ': plugin name already exist');
+
+    /**
+     * Initialize preload plugins (before core modules)
+     */
+    initPreloadPlugins() {
+        const preloadPlugins = this.jm.constructor.pluginList.filter(d => d.preload);
+        logger.info('Initializing ' + preloadPlugins.length + ' preload plugins');
+        preloadPlugins.forEach(descriptor => {
+            this._initPlugin(descriptor);
+        });
     }
-    plugin_data.plugins.push(plugin);
+
+    /**
+     * Initialize normal plugins (after core modules)
+     */
+    initNormalPlugins() {
+        const normalPlugins = this.jm.constructor.pluginList.filter(d => !d.preload);
+        logger.info('Initializing ' + normalPlugins.length + ' normal plugins');
+        normalPlugins.forEach(descriptor => {
+            this._initPlugin(descriptor);
+        });
+    }
+
+    /**
+     * Internal method: Initialize a single plugin
+     * @param {PluginDescriptor} descriptor
+     * @private
+     */
+    _initPlugin(descriptor) {
+        try {
+            const { PluginClass, pluginOpt } = descriptor;
+
+            if (!PluginClass.instanceName) {
+                throw new Error('Plugin ' + PluginClass.name + ' must define static instanceName');
+            }
+            if (this.plugins.has(PluginClass.instanceName)) {
+                logger.warn(
+                    'Plugin ' + PluginClass.instanceName + ' already exists, will be replaced'
+                );
+            }
+
+            const instance = new PluginClass({
+                jm: this.jm,
+                pluginOpt: pluginOpt || {},
+            });
+
+            this.plugins.set(PluginClass.instanceName, instance);
+            this.jm[PluginClass.instanceName] = instance;
+            descriptor.instance = instance;
+
+            logger.info('Plugin ' + PluginClass.instanceName + ' initialized');
+        } catch (error) {
+            logger.error('Failed to initialize plugin ' + descriptor.PluginClass.name + ':', error);
+        }
+    }
+
+    /**
+     * Remove a plugin
+     * @param {typeof Plugin} PluginClass
+     */
+    removePlugin(PluginClass) {
+        const instanceName = PluginClass.instanceName;
+        if (!instanceName) {
+            return;
+        }
+
+        const instance = this.plugins.get(instanceName);
+        if (!instance) {
+            return;
+        }
+
+        try {
+            if (typeof instance.beforePluginRemove === 'function') {
+                instance.beforePluginRemove();
+            }
+
+            this.plugins.delete(instanceName);
+            delete this.jm[instanceName];
+
+            const list = this.jm.constructor.pluginList;
+            const index = list.findIndex(d => d.PluginClass === PluginClass);
+            if (index !== -1) {
+                list.splice(index, 1);
+            }
+
+            logger.info('Plugin ' + instanceName + ' removed');
+        } catch (error) {
+            logger.error('Failed to remove plugin ' + instanceName + ':', error);
+        }
+    }
+
+    /**
+     * Destroy all plugins
+     */
+    destroyAllPlugins() {
+        this.plugins.forEach((instance, instanceName) => {
+            try {
+                if (typeof instance.beforePluginDestroy === 'function') {
+                    instance.beforePluginDestroy();
+                }
+            } catch (error) {
+                logger.error('Failed to destroy plugin ' + instanceName + ':', error);
+            }
+        });
+
+        this.plugins.clear();
+    }
+
+    /**
+     * Get plugin instance by name
+     * @param {string} instanceName
+     * @returns {Plugin | undefined}
+     */
+    getPlugin(instanceName) {
+        return this.plugins.get(instanceName);
+    }
 }
 
 /**
- * Apply registered plugins asynchronously.
- * @param {import('./jsmind.js').default} jm
- * @param {Record<string, object>} options
+ * Plugin Base Class
+ * Provides standard plugin interface.
  */
-export function apply(jm, options) {
-    $.w.setTimeout(function () {
-        _apply(jm, options);
-    }, 0);
-}
-
-/**
- * @param {import('./jsmind.js').default} jm
- * @param {Record<string, object>} options */
-function _apply(jm, options) {
-    plugin_data.plugins.forEach(p => p.fn_init(jm, options[p.name]));
-}
-
 export class Plugin {
     /**
-     * @template [TOptions=object]
-     * @param {string} name
-     * @param {(jm: import('./jsmind.js').default, options: TOptions)=>void} fn_init
+     * Plugin instance name (must be defined by subclass)
+     * @type {string}
      */
-    constructor(name, fn_init) {
-        if (!name) {
-            throw new Error('plugin must has a name');
-        }
-        if (!fn_init || typeof fn_init !== 'function') {
-            throw new Error('plugin must has an init function');
-        }
-        this.name = name;
-        this.fn_init = fn_init;
+    static instanceName = '';
+
+    /**
+     * Whether to initialize before core modules
+     * @type {boolean}
+     */
+    static preload = false;
+
+    /**
+     * @param {{ jm: import('./jsmind.js').default, pluginOpt: object }} params
+     */
+    constructor({ jm, pluginOpt }) {
+        this.jm = jm;
+        this.options = pluginOpt || {};
+    }
+
+    /**
+     * Called before plugin is removed
+     */
+    beforePluginRemove() {}
+
+    /**
+     * Called before jsMind instance is destroyed
+     */
+    beforePluginDestroy() {
+        this.beforePluginRemove();
     }
 }
+
+/**
+ * Plugin descriptor
+ * @typedef {object} PluginDescriptor
+ * @property {typeof Plugin} PluginClass - Plugin class
+ * @property {string} instanceName - Plugin instance name
+ * @property {boolean} preload - Whether to preload
+ * @property {object} pluginOpt - Plugin options
+ * @property {Plugin | null} instance - Plugin instance (after initialization)
+ */
