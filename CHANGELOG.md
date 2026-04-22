@@ -6,14 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-#### Enhanced Plugin System
+#### Plugin System
 
--   **New Plugin Architecture**: Introduced enhanced plugin system with synchronous initialization, preload support, and lifecycle management
+-   **New Plugin Architecture**: Introduced plugin system with synchronous initialization, preload support, and lifecycle management
 
-    -   `EnhancedPluginManager` class for managing plugin lifecycle
-    -   `EnhancedPlugin` base class for creating plugins
+    -   `PluginManager` class for managing plugin lifecycle
+    -   `Plugin` base class for creating plugins
     -   Static method `jsMind.usePlugin(PluginClass, options)` for registering plugins
-    -   Static method `jsMind.hasEnhancedPlugin(PluginClass)` for checking plugin registration
+    -   Static method `jsMind.hasPlugin(PluginClass)` for checking plugin registration
     -   Instance method `jm.removePlugin(PluginClass)` for removing plugins
     -   Instance method `jm.getPlugin(instanceName)` for getting plugin instances
     -   Instance method `jm.destroy()` for destroying jsMind instance and cleaning up plugins
@@ -26,7 +26,7 @@ All notable changes to this project will be documented in this file.
     -   Dynamic plugin management: Add/remove plugins at runtime
     -   Full backward compatibility with existing plugin system
 
--   **MultilineTextV2 Plugin**: New multiline text plugin using enhanced plugin system
+-   **MultilineText Plugin**: Multiline plugin now uses unified plugin system with preload and lifecycle support
 
     -   Displays multiline text correctly on initial render (no re-render needed)
     -   Textarea-based editor for editing multiline text
@@ -35,19 +35,19 @@ All notable changes to this project will be documented in this file.
 
 -   **Documentation**:
 
-    -   Comprehensive plugin development guide: `docs/enhanced-plugin-system.md`
+    -   Comprehensive plugin development guide: `docs/plugin-system.md`
     -   API reference with examples
     -   Migration guide from old plugin system
-    -   TypeScript type definitions: `src/jsmind.enhanced-plugin.d.ts`
+    -   TypeScript type definitions: `src/jsmind.plugin.d.ts`
 
 -   **Examples**:
-    -   Complete demo page: `example/multiline-text-v2-demo.html`
+    -   Complete demo page: `example/demo.html`
     -   Shows plugin registration, usage, and dynamic management
 
 ### Changed
 
--   **Build Configuration**: Updated Rollup config to build enhanced plugin system and MultilineTextV2 plugin
--   **Core Initialization**: Modified jsMind initialization to support enhanced plugins
+-   **Build Configuration**: Updated Rollup config to build plugin system and MultilineText plugin
+-   **Core Initialization**: Modified jsMind initialization to support plugins
     -   Preload plugins initialize before core modules
     -   Normal plugins initialize after core modules
     -   Old plugins continue to initialize asynchronously (backward compatible)
@@ -58,7 +58,7 @@ All notable changes to this project will be documented in this file.
 
 ```
 1. jsMind instance created
-2. Enhanced plugin manager initialized
+2. Plugin manager initialized
 3. Preload plugins initialized (preload: true)
 4. Core modules initialized (data, layout, view, shortcut)
 5. Normal plugins initialized (preload: false)
@@ -68,18 +68,17 @@ All notable changes to this project will be documented in this file.
 
 #### Files Added
 
--   `src/jsmind.enhanced-plugin.js` - Enhanced plugin system
--   `src/jsmind.enhanced-plugin.d.ts` - TypeScript type definitions
--   `src/plugins/jsmind.multiline-text-v2.js` - MultilineTextV2 plugin
--   `src/plugins/jsmind.multiline-text-v2.d.ts` - TypeScript type definitions
--   `example/multiline-text-v2-demo.html` - Demo page
--   `docs/enhanced-plugin-system.md` - Documentation
+-   `src/jsmind.plugin.js` - Plugin system
+-   `src/jsmind.plugin.d.ts` - TypeScript type definitions
+-   `src/plugins/jsmind.multiline-text.js` - MultilineText plugin
+-   `example/demo.html` - Demo page
+-   `docs/plugin-system.md` - Documentation
 
 #### Files Modified
 
--   `src/jsmind.js` - Added enhanced plugin system support
+-   `src/jsmind.js` - Added plugin system support
 -   `.config/rollup.config.js` - Added build configuration for new modules
--   `README.md` - Added enhanced plugin system introduction
+-   `README.md` - Added plugin system introduction
 
 ### Upgrade Guide
 
@@ -87,7 +86,7 @@ All notable changes to this project will be documented in this file.
 
 If you're using the old plugin system, no changes are required. The old plugin system continues to work as before.
 
-To use the new enhanced plugin system:
+To use the new plugin system:
 
 ```javascript
 // Old way (still works)
@@ -101,9 +100,9 @@ const jm = new jsMind({
 });
 
 // New way
-import MultilineTextV2 from './plugins/jsmind.multiline-text-v2.js';
+import { MultilineTextPlugin } from './plugins/jsmind.multiline-text.js';
 
-jsMind.usePlugin(MultilineTextV2, {
+jsMind.usePlugin(MultilineTextPlugin, {
     /* options */
 });
 
@@ -116,17 +115,17 @@ const jm = new jsMind({
 
 To migrate your plugin to the enhanced system:
 
-1. Extend `EnhancedPlugin` base class
+1. Extend `Plugin` base class
 2. Define `static instanceName`
 3. Implement constructor with `{ jm, pluginOpt }` parameters
 4. Implement lifecycle hooks: `beforePluginRemove()`, `beforePluginDestroy()`
 5. Register with `jsMind.usePlugin(YourPlugin, options)`
 
-See `docs/enhanced-plugin-system.md` for detailed migration guide.
+See `docs/plugin-system.md` for detailed migration guide.
 
 ### Breaking Changes
 
-None. The enhanced plugin system is fully backward compatible with the existing plugin system.
+None. The plugin system is fully backward compatible with the existing plugin system.
 
 ---
 

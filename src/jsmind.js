@@ -14,8 +14,7 @@ import { DataProvider } from './jsmind.data_provider.js';
 import { LayoutProvider } from './jsmind.layout_provider.js';
 import { ViewProvider } from './jsmind.view_provider.js';
 import { ShortcutProvider } from './jsmind.shortcut_provider.js';
-import { Plugin, register as _register_plugin, apply as apply_plugins } from './jsmind.plugin.js';
-import { EnhancedPluginManager, EnhancedPlugin } from './jsmind.enhanced-plugin.js';
+import { PluginManager, Plugin } from './jsmind.plugin.js';
 import { format } from './jsmind.format.js';
 import { $ } from './jsmind.dom.js';
 import { util as _util } from './jsmind.util.js';
@@ -35,22 +34,21 @@ export default class jsMind {
     static event_type = EventType;
     static $ = $;
     static plugin = Plugin;
-    static register_plugin = _register_plugin;
     static util = _util;
-    static enhanced_plugin = EnhancedPlugin;
+    static plugin_base = Plugin;
 
-    /** @type {Array<import('./jsmind.enhanced-plugin.js').PluginDescriptor>} */
-    static enhancedPluginList = [];
+    /** @type {Array<import('./jsmind.plugin.js').PluginDescriptor>} */
+    static pluginList = [];
 
     /**
-     * Register an enhanced plugin
-     * @param {typeof EnhancedPlugin} PluginClass - Plugin class
+     * Register a plugin
+     * @param {typeof Plugin} PluginClass - Plugin class
      * @param {object} [options={}] - Plugin options
      * @returns {typeof jsMind}
      */
     static usePlugin(PluginClass, options = {}) {
         // Check if already registered
-        const exists = jsMind.enhancedPluginList.some(d => d.PluginClass === PluginClass);
+        const exists = jsMind.pluginList.some(d => d.PluginClass === PluginClass);
         if (exists) {
             logger.warn('Plugin ' + PluginClass.name + ' already registered');
             return jsMind;
@@ -62,7 +60,7 @@ export default class jsMind {
         }
 
         // Add to plugin list
-        jsMind.enhancedPluginList.push({
+        jsMind.pluginList.push({
             PluginClass,
             instanceName: PluginClass.instanceName,
             preload: PluginClass.preload || false,
@@ -74,12 +72,12 @@ export default class jsMind {
     }
 
     /**
-     * Check if an enhanced plugin is registered
-     * @param {typeof EnhancedPlugin} PluginClass - Plugin class
+     * Check if a plugin is registered
+     * @param {typeof Plugin} PluginClass - Plugin class
      * @returns {boolean}
      */
-    static hasEnhancedPlugin(PluginClass) {
-        return jsMind.enhancedPluginList.some(d => d.PluginClass === PluginClass);
+    static hasPlugin(PluginClass) {
+        return jsMind.pluginList.some(d => d.PluginClass === PluginClass);
     }
 
     /**
@@ -105,11 +103,11 @@ export default class jsMind {
         }
         this.initialized = true;
 
-        // Initialize enhanced plugin manager
-        this.enhancedPluginManager = new EnhancedPluginManager(this);
+        // Initialize plugin manager
+        this.pluginManager = new PluginManager(this);
 
         // Initialize preload plugins (before core modules)
-        this.enhancedPluginManager.initPreloadPlugins();
+        this.pluginManager.initPreloadPlugins();
 
         var opts_layout = {
             mode: this.options.mode,
@@ -150,10 +148,8 @@ export default class jsMind {
         this._event_bind();
 
         // Initialize normal plugins (after core modules)
-        this.enhancedPluginManager.initNormalPlugins();
+        this.pluginManager.initNormalPlugins();
 
-        // Apply old plugins (asynchronously)
-        apply_plugins(this, this.options.plugin);
     }
     /** @returns {boolean} whether current mind map is editable */
     get_editable() {
@@ -826,7 +822,7 @@ export default class jsMind {
         }
     }
     /**
-     * Update node topic text or multiple node properties.
+     * Update the topic (text content) of a node, or update multiple node properties.
      * @param {string} node_id - The ID of the node to update
      * @param {string|Partial<Pick<import('./jsmind.node.js').Node, 'topic' | 'data' | 'id' | 'index' | 'expanded' | 'direction'>>} topic_or_updates - Topic string for backward compatibility, or partial Node object for comprehensive updates
      */
@@ -1282,23 +1278,23 @@ export default class jsMind {
     }
 
     /**
-     * Remove an enhanced plugin
-     * @param {typeof EnhancedPlugin} PluginClass - Plugin class
+     * Remove a plugin
+     * @param {typeof Plugin} PluginClass - Plugin class
      */
     removePlugin(PluginClass) {
-        if (this.enhancedPluginManager) {
-            this.enhancedPluginManager.removePlugin(PluginClass);
+        if (this.pluginManager) {
+            this.pluginManager.removePlugin(PluginClass);
         }
     }
 
     /**
-     * Get an enhanced plugin instance
+     * Get a plugin instance
      * @param {string} instanceName - Plugin instance name
-     * @returns {EnhancedPlugin | undefined}
+     * @returns {Plugin | undefined}
      */
     getPlugin(instanceName) {
-        if (this.enhancedPluginManager) {
-            return this.enhancedPluginManager.getPlugin(instanceName);
+        if (this.pluginManager) {
+            return this.pluginManager.getPlugin(instanceName);
         }
         return undefined;
     }
@@ -1307,9 +1303,9 @@ export default class jsMind {
      * Destroy the jsMind instance and clean up resources
      */
     destroy() {
-        // Destroy enhanced plugins
-        if (this.enhancedPluginManager) {
-            this.enhancedPluginManager.destroyAllPlugins();
+        // Destroy plugins
+        if (this.pluginManager) {
+            this.pluginManager.destroyAllPlugins();
         }
 
         // Clear event listeners

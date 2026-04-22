@@ -1,12 +1,12 @@
 /**
  * @license BSD
  *
- * HistoryPlugin (EnhancedPlugin)
+ * HistoryPlugin (Plugin)
  * Undo/Redo & History stack for jsMind with public APIs and future diff support.
  * This is the initial skeleton (Task 1): preload plugin, mount jm.history with no-op methods.
  */
 
-import { EnhancedPlugin } from '../../jsmind.enhanced-plugin.js';
+import { Plugin } from '../../jsmind.plugin.js';
 import { logger, EventType } from '../../jsmind.common.js';
 import { diff as diffSnapshots } from './history-diff.js';
 
@@ -41,7 +41,7 @@ function normalizeOptions(opt) {
 /**
  * HistoryPlugin skeleton (Task 1)
  */
-class HistoryPlugin extends EnhancedPlugin {
+class HistoryPlugin extends Plugin {
     static instanceName = 'historyPlugin';
     static preload = true;
 

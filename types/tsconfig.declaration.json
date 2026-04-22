@@ -12,8 +12,13 @@
         "allowJs": true,
         "checkJs": false,
         "rootDirs": ["../src"],
+        "paths": {
+            "@umbraci/jsmind": ["../src/index.ts"],
+            "@umbraci/jsmind/*": ["../src/plugins/*"]
+        },
         "outDir": "./generated",
         "baseUrl": "."
     },
-    "include" : ["../src/**/*.ts", "../src/**/*.js"]
+    "include" : ["../src/**/*.ts", "../src/**/*.js"],
+    "exclude": ["./generated/**/*"]
 }

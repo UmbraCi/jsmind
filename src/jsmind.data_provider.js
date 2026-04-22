@@ -44,15 +44,17 @@ export class DataProvider {
             df = 'freemind';
         }
 
-        var fieldNames = this.jm.options.fieldNames;
+        const fieldNames = this.jm && this.jm.options ? this.jm.options.fieldNames : undefined;
+        const getMind = parser =>
+            typeof fieldNames === 'undefined' ? parser.get_mind(mind_data) : parser.get_mind(mind_data, fieldNames);
         if (df == 'node_array') {
-            mind = format.node_array.get_mind(mind_data, fieldNames);
+            mind = getMind(format.node_array);
         } else if (df == 'node_tree') {
-            mind = format.node_tree.get_mind(mind_data, fieldNames);
+            mind = getMind(format.node_tree);
         } else if (df == 'freemind') {
-            mind = format.freemind.get_mind(mind_data, fieldNames);
+            mind = getMind(format.freemind);
         } else if (df == 'text') {
-            mind = format.text.get_mind(mind_data, fieldNames);
+            mind = getMind(format.text);
         } else {
             logger.warn('unsupported format');
         }
@@ -65,11 +67,13 @@ export class DataProvider {
      */
     get_data(data_format) {
         var data = null;
-        var fieldNames = this.jm.options.fieldNames;
+        const fieldNames = this.jm && this.jm.options ? this.jm.options.fieldNames : undefined;
+        const getData = parser =>
+            typeof fieldNames === 'undefined' ? parser.get_data(this.jm.mind) : parser.get_data(this.jm.mind, fieldNames);
         if (data_format == 'node_array') {
-            data = format.node_array.get_data(this.jm.mind, fieldNames);
+            data = getData(format.node_array);
         } else if (data_format == 'node_tree') {
-            data = format.node_tree.get_data(this.jm.mind, fieldNames);
+            data = getData(format.node_tree);
         } else if (data_format == 'freemind') {
             data = format.freemind.get_data(this.jm.mind);
         } else if (data_format == 'text') {

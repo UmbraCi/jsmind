@@ -13,29 +13,9 @@
             "require": "./lib/jsmind.js",
             "types": "./types/generated/index.d.ts"
         },
-        "./draggable-node": {
-            "import": "./es/jsmind.draggable-node.js",
-            "require": "./lib/jsmind.draggable-node.js",
-            "types": "./types/generated/plugins/jsmind.draggable-node.d.ts"
-        },
-        "./screenshot": {
-            "import": "./es/jsmind.screenshot.js",
-            "require": "./lib/jsmind.screenshot.js",
-            "types": "./types/generated/plugins/jsmind.screenshot.d.ts"
-        },
-        "./multiline-text": {
-            "import": "./es/jsmind.multiline-text.js",
-            "require": "./lib/jsmind.multiline-text.js",
-            "types": "./types/generated/plugins/jsmind.multiline-text.d.ts"
-        },
-        "./history": {
-            "import": "./es/jsmind.history.js",
-            "require": "./lib/jsmind.history.js",
-            "types": "./types/generated/plugins/history/jsmind.history.d.ts"
-        },
-        "./multi-select": {
-            "import": "./es/jsmind.multi-select.js",
-            "require": "./lib/jsmind.multi-select.js"
+        "./*": {
+            "import": "./es/jsmind.*.js",
+            "require": "./lib/jsmind.*.js"
         },
         "./style/jsmind.css": "./style/jsmind.css"
     },
@@ -54,8 +34,10 @@
     ],
     "scripts": {
         "server": "http-server",
+        "sync-plugins": "node scripts/sync-plugins.mjs",
+        "prebuild": "npm run sync-plugins",
         "build": "rollup -c .config/rollup.config.js",
-        "build-types": "npx -p typescript tsc -p types/tsconfig.declaration.json",
+        "build-types": "npm run sync-plugins && npx -p typescript tsc -p types/tsconfig.declaration.json",
         "test": "NODE_OPTIONS=--experimental-vm-modules jest tests/unit",
         "test-es6": "NODE_OPTIONS=--experimental-vm-modules jest tests/unit",
         "test-types": "NODE_OPTIONS=--experimental-vm-modules jest tests/types",
@@ -111,5 +93,24 @@
     ],
     "dependencies": {
         "fast-equals": "^5.3.2"
+    },
+    "typesVersions": {
+        "*": {
+            "draggable-node": [
+                "types/generated/plugins/jsmind.draggable-node.d.ts"
+            ],
+            "history": [
+                "types/generated/plugins/history/jsmind.history.d.ts"
+            ],
+            "multi-select": [
+                "types/generated/plugins/jsmind.multi-select.d.ts"
+            ],
+            "multiline-text": [
+                "types/generated/plugins/jsmind.multiline-text.d.ts"
+            ],
+            "screenshot": [
+                "types/generated/plugins/jsmind.screenshot.d.ts"
+            ]
+        }
     }
 }

@@ -6,7 +6,7 @@
  *   https://github.com/UmbraCi/jsmind/
  */
 
-import { EnhancedPlugin } from '../jsmind.enhanced-plugin.js';
+import { Plugin } from '../jsmind.plugin.js';
 import { EventType, logger } from '../jsmind.common.js';
 
 /**
@@ -895,9 +895,9 @@ class MultiSelectCore {
 }
 
 /**
- * Multi-Select Plugin - Enhanced plugin for jsMind
+ * Multi-Select Plugin - Plugin for jsMind
  */
-export class MultiSelectPlugin extends EnhancedPlugin {
+export class MultiSelectPlugin extends Plugin {
     static instanceName = 'multiSelectPlugin';
     static preload = false;
 

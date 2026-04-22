@@ -11,11 +11,12 @@ import jsMind, {
     MindMapMeta,
     NodeTreeFormat,
     NodeTreeData,
-} from 'jsmind';
+} from '@umbraci/jsmind';
 import { EventData } from 'types/generated/jsmind';
+import '@umbraci/jsmind/history';
 // Note: in real usage, plugins should be imported to register themselves
-// import 'jsmind/draggable-node';
-// import 'jsmind/screenshot';
+// import '@umbraci/jsmind/draggable-node';
+// import '@umbraci/jsmind/screenshot';
 
 // ============================================================================
 // Basic options

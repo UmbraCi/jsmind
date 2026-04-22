@@ -7,6 +7,7 @@
  */
 
 import jsMind from '@umbraci/jsmind';
+import { Plugin } from '../jsmind.plugin.js';
 
 if (!jsMind) {
     throw new Error('jsMind is not defined');
@@ -171,15 +172,30 @@ export class DraggableNode {
      * @param {HTMLElement} el - The node element to mirror as shadow
      */
     reset_shadow(el) {
-        var s = this.shadow.style;
+        var shadowStyle = this.shadow.style;
+        var inlineStyle = el.style;
+        var computedStyle = $.w.getComputedStyle(el);
+
         this.shadow.innerHTML = el.innerHTML;
-        s.left = el.style.left;
-        s.top = el.style.top;
-        s.width = el.style.width;
-        s.height = el.style.height;
-        s.backgroundImage = el.style.backgroundImage;
-        s.backgroundSize = el.style.backgroundSize;
-        s.transform = el.style.transform;
+
+        var copiedInlineProps = [
+            'left',
+            'top',
+            'width',
+            'height',
+            'backgroundImage',
+            'backgroundSize',
+            'transform',
+        ];
+        copiedInlineProps.forEach(prop => {
+            shadowStyle[prop] = inlineStyle[prop];
+        });
+
+        var textLayoutProps = ['whiteSpace', 'wordBreak', 'overflowWrap', 'maxWidth'];
+        textLayoutProps.forEach(prop => {
+            shadowStyle[prop] = inlineStyle[prop] || computedStyle[prop];
+        });
+
         this.shadow_w = this.shadow.clientWidth;
         this.shadow_h = this.shadow.clientHeight;
     }
@@ -722,17 +738,31 @@ export class DraggableNode {
 }
 
 /**
- * Draggable node plugin registration.
- * @type {import('../jsmind.plugin.js').Plugin<Partial<DraggableNodeOptions>>}
+ * Draggable node plugin for unified plugin system.
  */
-export const draggable_plugin = new jsMind.plugin('draggable_node', function (jm, options) {
-    var jd = new DraggableNode(jm, options);
-    jd.init();
-    jm.add_event_listener(function (type, data) {
-        jd.jm_event_handle.call(jd, type, data);
-    });
-});
+export class DraggableNodePlugin extends Plugin {
+    static instanceName = 'draggable';
+    static preload = false;
 
-jsMind.register_plugin(draggable_plugin);
+    /**
+     * @param {{ jm: import('../jsmind.js').default, pluginOpt: Partial<DraggableNodeOptions> }} params
+     */
+    constructor({ jm, pluginOpt }) {
+        super({ jm, pluginOpt });
+        this.draggable = new DraggableNode(jm, pluginOpt);
+        this.draggable.init();
+        this._eventHandle = (type, data) => {
+            this.draggable.jm_event_handle(type, data);
+        };
+        jm.add_event_listener(this._eventHandle);
+        jm.draggable = this.draggable;
+    }
+
+    beforePluginRemove() {
+        delete this.jm.draggable;
+    }
+}
+
+jsMind.usePlugin(DraggableNodePlugin);
 
 export default DraggableNode;
