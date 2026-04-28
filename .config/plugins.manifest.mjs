@@ -31,7 +31,7 @@ export const pluginManifest = [
     },
     {
         subpath: 'multi-select',
-        entry: 'src/plugins/jsmind.multi-select.js',
+        entry: 'src/plugins/multi-select/jsmind.multi-select.js',
         umdName: 'jsMindMultiSelect',
         external: ['@umbraci/jsmind'],
         globals: { '@umbraci/jsmind': 'jsMind' },

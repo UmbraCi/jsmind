@@ -192,7 +192,7 @@ const historyConfig = {
 
 // Multi-select plugin configuration
 const multiSelectConfig = {
-    input: 'src/plugins/jsmind.multi-select.js',
+    input: 'src/plugins/multi-select/jsmind.multi-select.js',
     output: [
         // ES Module
         {
